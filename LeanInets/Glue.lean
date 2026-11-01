@@ -86,6 +86,21 @@ theorem swap_link {α β : Type} (N : Net S (α ⊕ β)) (p : N.Port) :
     N.swap.link (N.swapPort p) = N.swapPort (N.link p) :=
   reindex_link _ N p
 
+/-- Swapping the interface twice gives back the original net. -/
+def swapSwap {α β : Type} (N : Net S (α ⊕ β)) : Iso N.swap.swap N where
+  agent := .refl _
+  wire := .refl _
+  label_agent _ := rfl
+  link_map p := by
+    have h (q : N.Port) : N.swap.swapPort (N.swapPort q) = q := by
+      rcases q with (_ | _) | _ | _ | _ <;> rfl
+    have h' (q : N.Port) : (N.reindexPort (Equiv.sumComm α β)).symm
+        ((N.swap.reindexPort (Equiv.sumComm β α)).symm q) = q := by
+      rcases q with (_ | _) | _ | _ | _ <;> rfl
+    simp only [Equiv.coe_refl, Port.map_id]
+    rw [h']
+    exact (h _).symm
+
 end reindex
 
 /-! ### Gluing -/
