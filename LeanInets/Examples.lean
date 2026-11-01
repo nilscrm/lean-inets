@@ -1,6 +1,6 @@
 module
 
-public import LeanInets.Net
+public import LeanInets.Iso
 
 /-!
 # Example nets
@@ -28,6 +28,27 @@ def ident (S : Signature) : Net S Side where
   link_link p := by rcases p with _ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | _ <;> rfl
   link_ne p := by rcases p with _ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | _ <;> nofun
   link_free _ := trivial
+
+/-- The identity net with its wire the other way round. -/
+def identFlip (S : Signature) : Net S Side where
+  Agent := Empty
+  Wire := Unit
+  label := Empty.elim
+  link
+    | .free s => .wire () s.flip
+    | .wire () s => .free s.flip
+    | .pri a => a.elim
+    | .aux a _ => a.elim
+  link_link p := by rcases p with _ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | _ <;> simp
+  link_ne p := by rcases p with _ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | _ <;> nofun
+  link_free _ := trivial
+
+/-- Isomorphisms cannot flip wires, so the two orientations of the identity net are not
+isomorphic. -/
+example (S : Signature) : ¬ (ident S).Isomorphic (identFlip S) := by
+  rintro ⟨e⟩
+  have : Port.wire () .r = .wire (e.wire ()) .l := e.link_port (.free .l)
+  cases this
 
 /-! ### Unary arithmetic
 

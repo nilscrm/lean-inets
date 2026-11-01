@@ -20,7 +20,7 @@
 0. [x] Project setup: Lake + Mathlib.
    - [ ] CI workflow (`.github/workflows/ci.yml` using `leanprover/lean-action`).
 1. [x] Signatures, ports, nets, active pairs; example nets.
-2. [ ] Isomorphism of nets (`Equiv` on agents and on wires, preserving labels and links,
+2. [x] Isomorphism of nets (`Equiv` on agents and on wires, preserving labels and links,
    identity on the interface); setoid.
 3. [ ] Gluing nets along their interfaces; algebra of gluing up to iso (associativity,
    commutativity, unit).

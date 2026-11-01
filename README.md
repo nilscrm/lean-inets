@@ -8,6 +8,7 @@ in Lean 4 with Mathlib.
 - `LeanInets/Signature.lean` – signatures (symbols with arities)
 - `LeanInets/Port.lean` – ports: free ports, principal/auxiliary agent ports, wire ends
 - `LeanInets/Net.lean` – nets and active pairs
+- `LeanInets/Iso.lean` – isomorphism of nets
 - `LeanInets/Examples.lean` – small example nets
 
 See [PLAN.md](PLAN.md) for the roadmap.
