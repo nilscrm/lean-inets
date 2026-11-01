@@ -1,7 +1,7 @@
 module
 
 public import LeanInets.Unit
-public import LeanInets.InteractionSystem
+public import LeanInets.Reduction
 
 /-!
 # Example nets
@@ -323,5 +323,24 @@ def arithSystem : InteractionSystem arith where
 
 /-- There is no rule for `S ⋈ Z`: their active pair is a deadlock. -/
 example : arithSystem.rule .succ .zero = none := rfl
+
+/-! ### Reduction -/
+
+/-- `S Z + Z` reduces, by the rule for `add ⋈ S`. -/
+example : ∃ N', arithSystem.Step onePlusZero N' :=
+  ⟨_, InteractionSystem.step_removePair
+    (show onePlusZero.IsActivePair OnePlusZero.Agent.add OnePlusZero.Agent.s from rfl).isActivePairW
+    (R := addSucc) rfl⟩
+
+/-- The numeral `S Z` is in normal form. -/
+example : arithSystem.Normal (zero.glue succAux) :=
+  have : IsEmpty (zero.glue succAux).Wire := inferInstanceAs (IsEmpty (Empty ⊕ Empty))
+  InteractionSystem.normal_of_isNormal (by rintro (⟨⟩ | ⟨⟩) (⟨⟩ | ⟨⟩) ⟨⟩)
+
+/-- `Z` glued to the principal port of `S` is in normal form, although it has an active pair:
+there is no rule for `Z ⋈ S`. -/
+example : arithSystem.Normal (zero.glue succPri) :=
+  InteractionSystem.normal_iff.mpr fun a b _ => by
+    rcases a with ⟨⟩ | ⟨⟩ <;> rcases b with ⟨⟩ | ⟨⟩ <;> rfl
 
 end Examples

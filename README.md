@@ -14,7 +14,10 @@ in Lean 4 with Mathlib.
 - `LeanInets/WireIso.lean` – isomorphism up to wires (the equivalence `≈`); gluing respects it
 - `LeanInets/Unit.lean` – the identity net is a unit for gluing up to `≈`
 - `LeanInets/InteractionSystem.lean` – active pairs as nets, interaction rules and interaction systems
-- `LeanInets/Examples.lean` – small example nets and the interaction system for unary addition
+- `LeanInets/Decompose.lean` – plugging a net into a context, active pairs up to wires, and
+  cutting an active pair out of its net
+- `LeanInets/Reduction.lean` – one-step and multi-step reduction, normal forms, and redexes
+- `LeanInets/Examples.lean` – small example nets, the interaction system for unary addition, and reductions
 
 See [PLAN.md](PLAN.md) for the roadmap.
 

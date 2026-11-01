@@ -37,8 +37,13 @@
    `Fin (arity α) ⊕ Fin (arity β)`), at most one rule per pair (`rule α β` is an `Option`),
    symmetry up to `≈` (the rule for `β ⋈ α` is the rule for `α ⋈ β` with its interface
    swapped). Example: the rules for unary addition.
-6. [ ] Reduction: `N ⟶ N'` iff `N ≈ glue C (α ⋈ β)` and `N' ≈ glue C rhs`; multi-step
-   reduction via `Relation.ReflTransGen`.
+6. [x] Reduction: `I.Step N N'` iff `N ≈ C.plug (α ⋈ β)` and `N' ≈ C.plug rhs`, where
+   `C.plug R` glues `R` into the hole `κ` of a context `C : Net S (ι ⊕ κ)`; multi-step
+   reduction `I.Reduces` (`Relation.ReflTransGen` of `Step`, followed by `≈`, so that zero
+   steps relate equivalent nets); normal forms `I.Normal`. Redexes are exactly the active pairs
+   up to wires (`IsActivePairW`: principal ports connected through wires) whose symbols have a
+   rule (`exists_step_iff`). The hard direction cuts an active pair out of its net
+   (`removePair`, `equiv_plug_removePair`).
 7. [ ] Metatheory: strong confluence modulo `≈`; Church–Rosser, uniqueness of normal forms,
    equal length of normalising reductions.
 8. [ ] More examples: unary arithmetic rules (addition is done), erasure/duplication, interaction combinators

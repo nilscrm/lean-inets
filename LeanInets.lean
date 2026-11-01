@@ -9,4 +9,6 @@ public import LeanInets.Connect
 public import LeanInets.WireIso
 public import LeanInets.Unit
 public import LeanInets.InteractionSystem
+public import LeanInets.Decompose
+public import LeanInets.Reduction
 public import LeanInets.Examples
