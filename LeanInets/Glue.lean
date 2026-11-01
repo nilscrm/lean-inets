@@ -11,8 +11,8 @@ of `M` linked to the free port `inl k`. Since free ports are only ever linked to
 ports, no chains of free ports have to be followed. The result has interface `ι ⊕ ι'`.
 
 Gluing is associative up to isomorphism, and commutative up to isomorphism after swapping
-the interfaces with `reindex`. Its unit, the net of wires `κ ⊕ κ`, is a unit only up to wire
-contraction, so the unit laws are deferred to the equivalence `≈`.
+the interfaces with `reindex`. Its unit, the net of wires `κ ⊕ κ`, is a unit only up to
+wires, so the unit laws are deferred to the equivalence `≈`.
 -/
 
 @[expose] public section

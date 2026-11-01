@@ -14,7 +14,7 @@ Wires are entities in their own right (with two ports and no principal port). Th
 require that free ports are only ever linked to entity ports, so that gluing nets along
 their interfaces never creates chains of free ports that would have to be followed. The
 price is that nets differing only by chains of wires are no longer isomorphic; they will be
-identified by a coarser equivalence that contracts wires.
+identified by a coarser equivalence that only looks at connections through wires.
 -/
 
 @[expose] public section
