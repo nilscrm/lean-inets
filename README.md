@@ -10,6 +10,8 @@ in Lean 4 with Mathlib.
 - `LeanInets/Net.lean` – nets and active pairs
 - `LeanInets/Iso.lean` – isomorphism of nets
 - `LeanInets/Glue.lean` – reindexing interfaces and gluing nets
+- `LeanInets/Contract.lean` – wire contraction and the equivalence `≈` of nets
+- `LeanInets/Unit.lean` – the identity net is a unit for gluing up to `≈`
 - `LeanInets/Examples.lean` – small example nets
 
 See [PLAN.md](PLAN.md) for the roadmap.

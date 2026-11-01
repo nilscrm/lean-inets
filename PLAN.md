@@ -25,8 +25,8 @@
 3. [x] Gluing nets along their interfaces (`glue : Net S (ι ⊕ κ) → Net S (κ ⊕ ι') →
    Net S (ι ⊕ ι')`), interface reindexing; gluing respects iso, is associative and
    commutative up to iso.
-4. [ ] Wire contraction and the equivalence `≈` (iso + contraction); the identity net of wires
-   is a unit for gluing up to `≈`.
+4. [x] Wire contraction and the equivalence `≈` (iso + contraction); reindexing and gluing
+   respect `≈`; the identity net of wires is a unit for gluing up to `≈`.
 5. [ ] Interaction systems: rules for pairs of symbols (RHS net with interface
    `Fin (arity α) ⊕ Fin (arity β)`), at most one rule per pair, symmetry.
 6. [ ] Reduction: `N ⟶ N'` iff `N ≈ glue C (α ⋈ β)` and `N' ≈ glue C rhs`; multi-step

@@ -1,6 +1,6 @@
 module
 
-public import LeanInets.Glue
+public import LeanInets.Unit
 
 /-!
 # Example nets
@@ -49,6 +49,105 @@ example (S : Signature) : ¬ (ident S).Isomorphic (identFlip S) := by
   rintro ⟨e⟩
   have : Port.wire () .r = .wire (e.wire ()) .l := e.link_port (.free .l)
   cases this
+
+/-! ### Wire contraction
+
+Contraction lets `≈` reverse wires: `ident` and `identFlip` are not isomorphic, and neither
+can be contracted (both ends of its wire are free), but both are contractions of a chain of
+two oppositely oriented wires. -/
+
+/-- Two wires in a row, the second one reversed: the free port `l` is linked to the left end
+of `false`, the right ends of `false` and `true` are linked, and the left end of `true` is
+linked to the free port `r`. -/
+def identTwo (S : Signature) : Net S Side where
+  Agent := Empty
+  Wire := Bool
+  label := Empty.elim
+  link
+    | .free .l => .wire false .l
+    | .wire false .l => .free .l
+    | .wire false .r => .wire true .r
+    | .wire true .r => .wire false .r
+    | .wire true .l => .free .r
+    | .free .r => .wire true .l
+    | .pri a => a.elim
+    | .aux a _ => a.elim
+  link_link p := by rcases p with (_ | _) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨_ | _, _ | _⟩ <;> rfl
+  link_ne p := by rcases p with (_ | _) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨_ | _, _ | _⟩ <;> nofun
+  link_free s := by cases s <;> trivial
+
+/-- The only wire of `ident` or `identFlip`, as a wire of `identTwo` other than `b`. -/
+def remainingWire (b : Bool) : Unit ≃ {v : Bool // v ≠ b} where
+  toFun _ := ⟨!b, by cases b <;> decide⟩
+  invFun _ := ()
+  left_inv _ := rfl
+  right_inv := by rintro ⟨v, hv⟩; cases b <;> cases v <;> first | rfl | exact absurd rfl hv
+
+/-- Contracting the second wire of `identTwo` gives `ident`. -/
+noncomputable def identTwoIdent (S : Signature) : Net.Contraction (identTwo S) (ident S) where
+  removed := true
+  agent := .refl _
+  wire := remainingWire true
+  label_agent a := a.elim
+  link_map p := by
+    rcases p with (_ | _) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _ | _⟩
+    · exact Net.skip_wire_of_ne (N := identTwo S) (w := true) (v := false)
+        (fun h => Bool.noConfusion h) .l
+    · exact Net.skip_wire_self (N := identTwo S) _
+    · rfl
+    · exact Net.skip_wire_self (N := identTwo S) _
+
+/-- Contracting the first wire of `identTwo` gives `identFlip`. -/
+noncomputable def identTwoIdentFlip (S : Signature) :
+    Net.Contraction (identTwo S) (identFlip S) where
+  removed := false
+  agent := .refl _
+  wire := remainingWire false
+  label_agent a := a.elim
+  link_map p := by
+    rcases p with (_ | _) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _ | _⟩
+    · exact Net.skip_wire_self (N := identTwo S) _
+    · exact Net.skip_wire_of_ne (N := identTwo S) (w := false) (v := true)
+        (fun h => Bool.noConfusion h) .l
+    · rfl
+    · exact Net.skip_wire_self (N := identTwo S) _
+
+/-- The two orientations of the identity net are equivalent. -/
+example (S : Signature) : ident S ≈ identFlip S :=
+  Setoid.trans (Setoid.symm (identTwoIdent S).equiv) (identTwoIdentFlip S).equiv
+
+/-- A vicious circle: a wire whose two ends are linked to each other. -/
+def loop (S : Signature) : Net S Empty where
+  Agent := Empty
+  Wire := Unit
+  label := Empty.elim
+  link
+    | .wire () s => .wire () s.flip
+    | .free i => i.elim
+    | .pri a => a.elim
+    | .aux a _ => a.elim
+  link_link p := by rcases p with ⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _ | _⟩ <;> rfl
+  link_ne p := by rcases p with ⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _ | _⟩ <;> nofun
+  link_free i := i.elim
+
+/-- The empty net. -/
+def empty (S : Signature) : Net S Empty where
+  Agent := Empty
+  Wire := Empty
+  label := Empty.elim
+  link p := p
+  link_link _ := rfl
+  link_ne p := by rcases p with ⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩
+  link_free i := i.elim
+
+/-- Vicious circles of wires vanish up to `≈`. -/
+example (S : Signature) : loop S ≈ empty S :=
+  Net.Contraction.equiv
+    { removed := ()
+      agent := .refl _
+      wire := ⟨Empty.elim, fun ⟨_, h⟩ => absurd rfl h, nofun, fun ⟨_, h⟩ => absurd rfl h⟩
+      label_agent := nofun
+      link_map := by rintro (⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩) }
 
 /-! ### Unary arithmetic
 
