@@ -1,6 +1,7 @@
 module
 
 public import LeanInets.Unit
+public import LeanInets.InteractionSystem
 
 /-!
 # Example nets
@@ -237,5 +238,90 @@ example : (zero.glue succPri).IsActivePair (.inl ()) (.inr ()) := rfl
 /-- Gluing `Z` to the auxiliary port of `S` gives the numeral `S Z`, which is normal. -/
 example : (zero.glue succAux).IsNormal := by
   rintro (⟨⟩ | ⟨⟩) (⟨⟩ | ⟨⟩) ⟨⟩
+
+/-! ### Interaction rules for addition
+
+Lafont's rules for addition: `add Z y = y` and `add (S x) y = S (add x y)`. The interface of
+a rule for `add ⋈ β` starts with the auxiliary ports of `add` (`inl 0` is `y`, `inl 1` is
+the result), followed by those of `β` (for `S`, `inr 0` is `x`). -/
+
+/-- The rule for `add ⋈ Z`: a wire connecting `y` to the result. -/
+def addZero : Net arith (Fin 2 ⊕ Fin 0) where
+  Agent := Empty
+  Wire := Unit
+  label := Empty.elim
+  link
+    | .free (.inl 0) => .wire () .l
+    | .free (.inl 1) => .wire () .r
+    | .wire () .l => .free (.inl 0)
+    | .wire () .r => .free (.inl 1)
+    | .free (.inr k) => k.elim0
+    | .pri a => a.elim
+    | .aux a _ => a.elim
+  link_link := by decide
+  link_ne := by decide
+  link_free := by decide
+
+namespace AddSucc
+
+/-- The agents of the rule for `add ⋈ S`. -/
+inductive Agent where
+  | add
+  | s
+  deriving DecidableEq, Repr
+
+instance : Fintype Agent :=
+  Fintype.ofList [.add, .s] (by intro a; cases a <;> decide)
+
+/-- The symbol of each agent. -/
+def label : Agent → arith.Sym
+  | .add => .add
+  | .s => .succ
+
+/-- The wiring of `S (add x y)`. -/
+def link : Port label Empty (Fin 2 ⊕ Fin 1) → Port label Empty (Fin 2 ⊕ Fin 1)
+  | .pri .s => .free (.inl 1)
+  | .aux .s _ => .aux .add ⟨1, by decide⟩
+  | .pri .add => .free (.inr 0)
+  | .aux .add ⟨0, _⟩ => .free (.inl 0)
+  | .aux .add _ => .aux .s ⟨0, by decide⟩
+  | .free (.inl ⟨0, _⟩) => .aux .add ⟨0, by decide⟩
+  | .free (.inl _) => .pri .s
+  | .free (.inr _) => .pri .add
+  | .wire w _ => w.elim
+
+end AddSucc
+
+/-- The rule for `add ⋈ S`: the net `S (add x y)`. -/
+def addSucc : Net arith (Fin 2 ⊕ Fin 1) where
+  Agent := AddSucc.Agent
+  Wire := Empty
+  label := AddSucc.label
+  link := AddSucc.link
+  link_link := by decide
+  link_ne := by decide
+  link_free := by decide
+
+/-- The rules for addition; the rules for `Z ⋈ add` and `S ⋈ add` are obtained by swapping
+the interface. -/
+def arithRule : (α β : arith.Sym) → Option (Net arith (Fin (arith.arity α) ⊕ Fin (arith.arity β)))
+  | .add, .zero => some addZero
+  | .zero, .add => some addZero.swap
+  | .add, .succ => some addSucc
+  | .succ, .add => some addSucc.swap
+  | _, _ => none
+
+/-- The interaction system for addition. -/
+def arithSystem : InteractionSystem arith where
+  rule := arithRule
+  rule_swap α β N h := by
+    cases α <;> cases β <;> cases h
+    · exact ⟨_, rfl, (Net.swapSwap addZero).symm.equiv⟩
+    · exact ⟨_, rfl, (Net.swapSwap addSucc).symm.equiv⟩
+    · exact ⟨_, rfl, Setoid.refl _⟩
+    · exact ⟨_, rfl, Setoid.refl _⟩
+
+/-- There is no rule for `S ⋈ Z`: their active pair is a deadlock. -/
+example : arithSystem.rule .succ .zero = none := rfl
 
 end Examples

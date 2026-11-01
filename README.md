@@ -13,7 +13,8 @@ in Lean 4 with Mathlib.
 - `LeanInets/Connect.lean` – connected ports (paths of links and wires) and partners of terminal ports
 - `LeanInets/WireIso.lean` – isomorphism up to wires (the equivalence `≈`); gluing respects it
 - `LeanInets/Unit.lean` – the identity net is a unit for gluing up to `≈`
-- `LeanInets/Examples.lean` – small example nets
+- `LeanInets/InteractionSystem.lean` – active pairs as nets, interaction rules and interaction systems
+- `LeanInets/Examples.lean` – small example nets and the interaction system for unary addition
 
 See [PLAN.md](PLAN.md) for the roadmap.
 

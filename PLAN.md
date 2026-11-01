@@ -32,13 +32,16 @@
 4. [x] Connections through wires and the equivalence `≈` (isomorphism up to wires);
    reindexing and gluing respect `≈`; the identity net of wires is a unit for gluing up to
    `≈`.
-5. [ ] Interaction systems: rules for pairs of symbols (RHS net with interface
-   `Fin (arity α) ⊕ Fin (arity β)`), at most one rule per pair, symmetry.
+5. [x] Interaction systems: the active pair `α ⋈ β` as a net (`activePair`, with
+   `(α ⋈ β).swap ≅ β ⋈ α`); rules for pairs of symbols (RHS net with interface
+   `Fin (arity α) ⊕ Fin (arity β)`), at most one rule per pair (`rule α β` is an `Option`),
+   symmetry up to `≈` (the rule for `β ⋈ α` is the rule for `α ⋈ β` with its interface
+   swapped). Example: the rules for unary addition.
 6. [ ] Reduction: `N ⟶ N'` iff `N ≈ glue C (α ⋈ β)` and `N' ≈ glue C rhs`; multi-step
    reduction via `Relation.ReflTransGen`.
 7. [ ] Metatheory: strong confluence modulo `≈`; Church–Rosser, uniqueness of normal forms,
    equal length of normalising reductions.
-8. [ ] More examples: unary arithmetic rules, erasure/duplication, interaction combinators
+8. [ ] More examples: unary arithmetic rules (addition is done), erasure/duplication, interaction combinators
    `γ, δ, ε`.
 
 ## Possible extensions
