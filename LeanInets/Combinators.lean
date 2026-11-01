@@ -165,18 +165,18 @@ def rule : (α β : sig.Sym) → Option (Net sig (Fin (sig.arity α) ⊕ Fin (si
 /-- The interaction system of the interaction combinators. -/
 def system : InteractionSystem sig where
   rule := rule
-  rule_swap α β N h := by
-    cases α <;> cases β <;> cases h
+  rule_swap α β := by
+    cases α <;> cases β
     all_goals try first
-      | exact ⟨_, rfl, Setoid.refl _⟩
-      | exact ⟨_, rfl, (Net.swapSwap _).symm.equiv⟩
-    · refine ⟨_, rfl, ?_⟩
+      | exact .some (Setoid.refl _)
+      | exact .some (Net.swapSwap _).symm.equiv
+    · refine .some ?_
       have := (wiresSwap (Equiv.swap (0 : Fin 2) 1)).equiv
       rw [Equiv.symm_swap] at this
       exact Setoid.symm this
-    · exact ⟨_, rfl, Setoid.symm (wiresSwap (.refl _)).equiv⟩
-    · exact ⟨_, rfl, WireIso.equiv (.ofPartner (.refl _) nofun
-        (by rintro ((⟨_, ⟨⟩⟩ | ⟨_, ⟨⟩⟩) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩)))⟩
+    · exact .some (Setoid.symm (wiresSwap (.refl _)).equiv)
+    · exact .some (WireIso.equiv (.ofPartner (.refl _) nofun
+        (by rintro ((⟨_, ⟨⟩⟩ | ⟨_, ⟨⟩⟩) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩))))
 
 /-- Every pair of interaction combinators has a rule. -/
 theorem isSome_rule (α β : sig.Sym) : (system.rule α β).isSome := by

@@ -507,11 +507,12 @@ def arithRule : (α β : arith.Sym) → Option (Net arith (Fin (arith.arity α) 
 /-- The interaction system of unary arithmetic. -/
 def arithSystem : InteractionSystem arith where
   rule := arithRule
-  rule_swap α β N h := by
-    cases α <;> cases β <;> cases h
+  rule_swap α β := by
+    cases α <;> cases β
     all_goals first
-      | exact ⟨_, rfl, Setoid.refl _⟩
-      | exact ⟨_, rfl, (Net.swapSwap _).symm.equiv⟩
+      | exact .none
+      | exact .some (Setoid.refl _)
+      | exact .some (Net.swapSwap _).symm.equiv
 
 /-- There is no rule for `S ⋈ Z`: their active pair is a deadlock. -/
 example : arithSystem.rule .succ .zero = none := rfl

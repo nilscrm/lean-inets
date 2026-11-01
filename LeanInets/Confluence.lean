@@ -84,7 +84,7 @@ theorem Step.strong_confluence {N N₁ N₂ : Net S ι} (h₁ : I.Step N N₁) (
   · -- The same active pair, seen from the other side: use the symmetry of the rules.
     subst la₁ lb₁
     subst la₂ lb₂
-    obtain ⟨M, hM, hMR⟩ := I.rule_swap _ _ R₁ hR₁
+    obtain ⟨M, hM, hMR⟩ := I.exists_rule_swap hR₁
     obtain rfl := Option.some.inj (hR₂.symm.trans hM)
     let f := e₁.symm.trans (e₂.trans (((WireIso.refl C₂).plug
       (activePairSwap _ _).symm.wireIso).trans

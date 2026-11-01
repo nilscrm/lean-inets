@@ -11,8 +11,9 @@ by those of `β`, i.e. `Fin (arity α) ⊕ Fin (arity β)`.
 
 An interaction system (`InteractionSystem`) gives at most one rule for each pair of symbols
 (`rule α β` is an `Option`), and its rules are symmetric: the rule for `β ⋈ α` is the rule
-for `α ⋈ β` with the two halves of its interface swapped. Since reduction will be defined up
-to `≈`, symmetry is only required up to `≈`. For `α = β` it says that the rule itself is
+for `α ⋈ β` with the two halves of its interface swapped (`rule_swap`, stated with
+`Option.Rel`: both rules are absent, or both are present and related). Since reduction is
+defined up to `≈`, symmetry is only required up to `≈`. For `α = β` it says that the rule itself is
 symmetric (`InteractionSystem.rule_self`).
 -/
 
@@ -94,25 +95,34 @@ structure InteractionSystem (S : Signature) where
   /-- The right-hand side of the rule for `α ⋈ β`, if there is one. It has the same
   interface as `Net.activePair α β`. -/
   rule : (α β : S.Sym) → Option (Net S (Fin (S.arity α) ⊕ Fin (S.arity β)))
-  /-- If `α ⋈ β` rewrites to `N`, then `β ⋈ α` rewrites to `N` with its interface swapped,
-  up to `≈`. -/
-  rule_swap : ∀ α β N, rule α β = some N → ∃ M, rule β α = some M ∧ M ≈ N.swap
+  /-- The rules are symmetric: either neither `α ⋈ β` nor `β ⋈ α` has a rule, or the rule for
+  `β ⋈ α` is the rule for `α ⋈ β` with its interface swapped, up to `≈`. -/
+  rule_swap : ∀ α β, Option.Rel (fun M N => M ≈ Net.swap N) (rule β α) (rule α β)
 
 namespace InteractionSystem
 
 variable {S : Signature} (I : InteractionSystem S)
 
+/-- If `α ⋈ β` rewrites to `N`, then `β ⋈ α` rewrites to `N` with its interface swapped, up to
+`≈`. -/
+theorem exists_rule_swap {α β : S.Sym} {N} (h : I.rule α β = some N) :
+    ∃ M, I.rule β α = some M ∧ M ≈ N.swap := by
+  have := I.rule_swap α β
+  rw [h] at this
+  generalize I.rule β α = M at this ⊢
+  cases this with
+  | some hMN => exact ⟨_, rfl, hMN⟩
+
 /-- There is a rule for `α ⋈ β` iff there is one for `β ⋈ α`. -/
 theorem isSome_rule_comm (α β : S.Sym) : (I.rule α β).isSome = (I.rule β α).isSome := by
-  have h {α β : S.Sym} : (I.rule α β).isSome → (I.rule β α).isSome := fun h => by
-    obtain ⟨M, hM, -⟩ := I.rule_swap α β _ (Option.some_get h).symm
-    rw [hM]
-    rfl
-  exact Bool.eq_iff_iff.mpr ⟨h, h⟩
+  have := I.rule_swap α β
+  generalize I.rule α β = N at this ⊢
+  generalize I.rule β α = M at this ⊢
+  cases this <;> rfl
 
 /-- The rule for `α ⋈ α` is symmetric. -/
 theorem rule_self {α : S.Sym} {N} (h : I.rule α α = some N) : N.swap ≈ N := by
-  obtain ⟨M, hM, hMN⟩ := I.rule_swap α α N h
+  obtain ⟨M, hM, hMN⟩ := I.exists_rule_swap h
   obtain rfl : M = N := Option.some.inj (hM.symm.trans h)
   exact Setoid.symm hMN
 
