@@ -9,7 +9,7 @@ Two nets with the same interface are isomorphic if there are bijections between 
 agents and between their wires that preserve labels and links and fix the interface.
 
 Isomorphism is strict about wires: `a — w — b` is not isomorphic to `a — b`, and a wire may
-not be flipped. Both are identified later by the coarser equivalence that contracts wires.
+not be flipped. Both are identified by the coarser isomorphism up to wires (`WireIso`).
 -/
 
 @[expose] public section
@@ -118,7 +118,7 @@ theorem equivalence : Equivalence (@Isomorphic S ι) := ⟨refl, symm, trans⟩
 end Isomorphic
 
 /-- Nets up to isomorphism. This is deliberately not an instance: `≈` on nets is reserved
-for the coarser equivalence that also contracts wires. -/
+for the coarser isomorphism up to wires. -/
 def isoSetoid (S : Signature) (ι : Type) : Setoid (Net S ι) :=
   ⟨Isomorphic, Isomorphic.equivalence⟩
 

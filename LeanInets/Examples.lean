@@ -1,6 +1,6 @@
 module
 
-public import LeanInets.Glue
+public import LeanInets.Unit
 
 /-!
 # Example nets
@@ -49,6 +49,61 @@ example (S : Signature) : ¬ (ident S).Isomorphic (identFlip S) := by
   rintro ⟨e⟩
   have : Port.wire () .r = .wire (e.wire ()) .l := e.link_port (.free .l)
   cases this
+
+/-! ### Isomorphism up to wires
+
+`ident` and `identFlip` are not isomorphic, but they have the same connections: in both, the
+free port `l` is connected to `r`. -/
+
+theorem ident_conn (S : Signature) : (ident S).Conn (.free .l) (.free .r) :=
+  .single (Net.step_wire (N := ident S) () .l)
+
+theorem identFlip_conn (S : Signature) : (identFlip S).Conn (.free .l) (.free .r) :=
+  .single (Net.step_wire (N := identFlip S) () .r)
+
+/-- The two orientations of the identity net are isomorphic up to wires. -/
+def identWireIso (S : Signature) : Net.WireIso (ident S) (identFlip S) where
+  agent := .refl _
+  label_agent a := a.elim
+  conn_map x y h := by
+    rcases x with (_ | _) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩
+    · obtain rfl := h.unique (ident_conn S)
+      exact identFlip_conn S
+    · obtain rfl := h.unique (ident_conn S).symm
+      exact (identFlip_conn S).symm
+
+example (S : Signature) : ident S ≈ identFlip S := (identWireIso S).equiv
+
+/-- A vicious circle: a wire whose two ends are linked to each other. -/
+def loop (S : Signature) : Net S Empty where
+  Agent := Empty
+  Wire := Unit
+  label := Empty.elim
+  link
+    | .wire () s => .wire () s.flip
+    | .free i => i.elim
+    | .pri a => a.elim
+    | .aux a _ => a.elim
+  link_link p := by rcases p with ⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _ | _⟩ <;> rfl
+  link_ne p := by rcases p with ⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _ | _⟩ <;> nofun
+  link_free i := i.elim
+
+/-- The empty net. -/
+def empty (S : Signature) : Net S Empty where
+  Agent := Empty
+  Wire := Empty
+  label := Empty.elim
+  link p := p
+  link_link _ := rfl
+  link_ne p := by rcases p with ⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩
+  link_free i := i.elim
+
+/-- Vicious circles of wires vanish up to `≈`. -/
+example (S : Signature) : loop S ≈ empty S :=
+  Net.WireIso.equiv
+    { agent := .refl _
+      label_agent := nofun
+      conn_map := by rintro (⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩) }
 
 /-! ### Unary arithmetic
 
