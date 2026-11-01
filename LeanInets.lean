@@ -11,4 +11,6 @@ public import LeanInets.Unit
 public import LeanInets.InteractionSystem
 public import LeanInets.Decompose
 public import LeanInets.Reduction
+public import LeanInets.Context
+public import LeanInets.Confluence
 public import LeanInets.Examples
