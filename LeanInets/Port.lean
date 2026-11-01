@@ -105,6 +105,13 @@ theorem aux_congr {a b : Agent} (h : a = b) {k : Fin (S.arity (label a))}
   subst h
   rw [Fin.ext hk]
 
+/-- An entity port, moved to a net with a different interface. -/
+def ofEntity {ι' : Type} : (p : Port label Wire ι) → p.IsEntity → Port label Wire ι'
+  | free _, h => absurd h (not_isEntity_free _)
+  | pri a, _ => pri a
+  | aux a k, _ => aux a k
+  | wire w s, _ => wire w s
+
 /-! ### Transporting ports -/
 
 section map
@@ -133,6 +140,26 @@ variable (f : Agent → Agent') (hf : ∀ a, label' (f a) = label a) (g : Wire �
 
 @[simp] theorem map_id (p : Port label Wire ι) : map id (fun _ => rfl) id id p = p := by
   cases p <;> rfl
+
+@[simp] theorem isEntity_map (p : Port label Wire ι) :
+    (map f hf g h p).IsEntity ↔ p.IsEntity := by
+  cases p <;> rfl
+
+theorem map_injective (hf_inj : Function.Injective f) (hg : Function.Injective g)
+    (hh : Function.Injective h) : Function.Injective (map f hf g h) := by
+  rintro (_ | _ | ⟨a, k⟩ | _) (_ | _ | ⟨b, k'⟩ | _) e <;> simp at e
+  · rw [hh e]
+  · rw [hf_inj e]
+  · obtain ⟨hab, hk⟩ := e
+    cases hf_inj hab
+    exact aux_congr rfl (by simpa using congrArg Fin.val (eq_of_heq hk))
+  · rw [hg e.1, e.2]
+
+theorem map_ofEntity (p : Port label Wire ι) (hp : p.IsEntity) (h : ι' → ι) :
+    (p.ofEntity hp).map id (fun _ => rfl) id h = p := by
+  cases p
+  · exact absurd hp (not_isEntity_free _)
+  all_goals rfl
 
 theorem map_map (f' : Agent' → Agent'') (hf' : ∀ a, label'' (f' a) = label' a)
     (g' : Wire' → Wire'') (h' : ι' → ι'') (p : Port label Wire ι) :

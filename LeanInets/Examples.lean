@@ -1,6 +1,6 @@
 module
 
-public import LeanInets.Iso
+public import LeanInets.Glue
 
 /-!
 # Example nets
@@ -122,5 +122,64 @@ example : onePlusZero.IsActivePair OnePlusZero.Agent.add OnePlusZero.Agent.s := 
 
 /-- So `S Z + Z` is not in normal form. -/
 example : ¬ onePlusZero.IsNormal := fun h => h OnePlusZero.Agent.add OnePlusZero.Agent.s rfl
+
+/-! ### Gluing -/
+
+/-- Label a single agent. -/
+def single (s : arith.Sym) : Unit → arith.Sym := fun _ => s
+
+/-- A single `Z`, its principal port on the right of the interface. -/
+def zero : Net arith (Empty ⊕ Unit) where
+  Agent := Unit
+  Wire := Empty
+  label := single .zero
+  link
+    | .pri () => .free (.inr ())
+    | .free (.inr ()) => .pri ()
+    | .free (.inl e) => e.elim
+    | .aux () k => k.elim0
+    | .wire w _ => w.elim
+  link_link := by decide
+  link_ne := by decide
+  link_free := by decide
+
+/-- A single `S`, its principal port on the left of the interface and its auxiliary port on
+the right. -/
+def succPri : Net arith (Unit ⊕ Unit) where
+  Agent := Unit
+  Wire := Empty
+  label := single .succ
+  link
+    | .pri () => .free (.inl ())
+    | .free (.inl ()) => .pri ()
+    | .aux () _ => .free (.inr ())
+    | .free (.inr ()) => .aux () ⟨0, by decide⟩
+    | .wire w _ => w.elim
+  link_link := by decide
+  link_ne := by decide
+  link_free := by decide
+
+/-- A single `S`, its auxiliary port on the left of the interface and its principal port on
+the right. -/
+def succAux : Net arith (Unit ⊕ Unit) where
+  Agent := Unit
+  Wire := Empty
+  label := single .succ
+  link
+    | .aux () _ => .free (.inl ())
+    | .free (.inl ()) => .aux () ⟨0, by decide⟩
+    | .pri () => .free (.inr ())
+    | .free (.inr ()) => .pri ()
+    | .wire w _ => w.elim
+  link_link := by decide
+  link_ne := by decide
+  link_free := by decide
+
+/-- Gluing `Z` to the principal port of `S` creates an active pair across the boundary. -/
+example : (zero.glue succPri).IsActivePair (.inl ()) (.inr ()) := rfl
+
+/-- Gluing `Z` to the auxiliary port of `S` gives the numeral `S Z`, which is normal. -/
+example : (zero.glue succAux).IsNormal := by
+  rintro (⟨⟩ | ⟨⟩) (⟨⟩ | ⟨⟩) ⟨⟩
 
 end Examples
