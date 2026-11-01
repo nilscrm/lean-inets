@@ -36,7 +36,7 @@
    `(α ⋈ β).swap ≅ β ⋈ α`); rules for pairs of symbols (RHS net with interface
    `Fin (arity α) ⊕ Fin (arity β)`), at most one rule per pair (`rule α β` is an `Option`),
    symmetry up to `≈` (the rule for `β ⋈ α` is the rule for `α ⋈ β` with its interface
-   swapped). Example: the rules for unary addition.
+   swapped, stated with `Option.Rel`). Example: the rules for unary addition.
 6. [x] Reduction: `I.Step N N'` iff `N ≈ C.plug (α ⋈ β)` and `N' ≈ C.plug rhs`, where
    `C.plug R` glues `R` into the hole `κ` of a context `C : Net S (ι ⊕ κ)`; multi-step
    reduction `I.Reduces` (`Relation.ReflTransGen` of `Step`, followed by `≈`, so that zero
