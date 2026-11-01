@@ -1,6 +1,7 @@
 module
 
 public import LeanInets.Decompose
+public import LeanInets.Unit
 
 /-!
 # Contexts
@@ -134,6 +135,24 @@ def WireIso.plug (e : WireIso C C') (e' : WireIso R R') : WireIso (C.plug R) (C'
   rfl
 
 end congr
+
+/-! ### The identity context -/
+
+/-- Plugging into the identity net gives back the plugged net, up to wires. -/
+theorem idNet_plug {κ : Type} [Fintype κ] (R : Net S κ) : (idNet S κ).plug R ≈ R :=
+  Setoid.trans (reindex_equiv _ (idNet_glue _))
+    (reindexReindex R _ (Equiv.sumEmpty κ Empty) fun _ => rfl).equiv
+
+/-! ### Plugging into a plugged net -/
+
+/-- Plugging `X` into `C'` and the result into `C` is plugging `X` into the context
+`C.glue C'`. -/
+def plugPlug {ι κ κ' : Type} (C : Net S (ι ⊕ κ)) (C' : Net S (κ ⊕ κ')) (X : Net S κ') :
+    Iso (C.plug (C'.plug X)) ((C.glue C').plug X) :=
+  (((Iso.refl C).glue (reindexReindex (C'.glue (X.reindex (Equiv.sumEmpty κ' Empty).symm))
+    (Equiv.sumEmpty κ Empty) (Equiv.sumEmpty κ Empty).symm (by
+      rintro (_ | ⟨⟨⟩⟩)
+      rfl))).trans (glueAssoc C C' _).symm).reindex _
 
 /-! ### Reindexing the hole -/
 

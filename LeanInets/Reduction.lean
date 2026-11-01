@@ -1,6 +1,6 @@
 module
 
-public import LeanInets.Decompose
+public import LeanInets.Context
 
 /-!
 # Reduction
@@ -48,6 +48,19 @@ theorem step_plug {α β : S.Sym} {R : Net S (Fin (S.arity α) ⊕ Fin (S.arity 
     I.Step (C.plug (activePair α β)) (C.plug R) :=
   ⟨α, β, R, C, hR, Setoid.refl _, Setoid.refl _⟩
 
+/-- An active pair reduces to the right-hand side of its rule. -/
+theorem step_activePair {α β : S.Sym} {R : Net S (Fin (S.arity α) ⊕ Fin (S.arity β))}
+    (hR : I.rule α β = some R) : I.Step (activePair α β) R :=
+  ⟨α, β, R, idNet S _, hR, Setoid.symm (idNet_plug _), Setoid.symm (idNet_plug _)⟩
+
+/-- Reduction is closed under contexts. -/
+theorem Step.plug {κ : Type} {R R' : Net S κ} (h : I.Step R R') (C : Net S (ι ⊕ κ)) :
+    I.Step (C.plug R) (C.plug R') := by
+  obtain ⟨α, β, Q, C', hQ, hR, hR'⟩ := h
+  exact ⟨α, β, Q, C.glue C', hQ,
+    Setoid.trans (plug_equiv (Setoid.refl C) hR) (plugPlug C C' _).equiv,
+    Setoid.trans (plug_equiv (Setoid.refl C) hR') (plugPlug C C' _).equiv⟩
+
 /-! ### Reduction respects `≈` -/
 
 theorem Step.of_equiv {N N' M M' : Net S ι} (h : I.Step N N') (hN : N ≈ M) (hN' : N' ≈ M') :
@@ -94,6 +107,12 @@ theorem reduces_congr {N N' M M' : Net S ι} (hN : N ≈ M) (hN' : N' ≈ M') :
       I.Reduces M M' :=
     ((Reduces.of_equiv (Setoid.symm hN)).trans h).trans (.of_equiv hN')
   exact ⟨h hN hN', h (Setoid.symm hN) (Setoid.symm hN')⟩
+
+theorem Reduces.plug {κ : Type} {R R' : Net S κ} (h : I.Reduces R R') (C : Net S (ι ⊕ κ)) :
+    I.Reduces (C.plug R) (C.plug R') := by
+  obtain ⟨M, hM, hMR'⟩ := h
+  exact ⟨C.plug M, Relation.ReflTransGen.lift _ (fun _ _ h => h.plug C) _ _ hM,
+    plug_equiv (Setoid.refl C) hMR'⟩
 
 theorem normal_congr {N M : Net S ι} (h : N ≈ M) : I.Normal N ↔ I.Normal M :=
   ⟨fun hN M' hM => hN M' (hM.of_equiv (Setoid.symm h) (Setoid.refl _)),

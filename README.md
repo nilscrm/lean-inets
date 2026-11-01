@@ -21,7 +21,8 @@ in Lean 4 with Mathlib.
   determined by the active pair plugged into them
 - `LeanInets/Confluence.lean` – strong confluence, Church–Rosser, uniqueness of normal forms and
   equal length of normalising reductions
-- `LeanInets/Examples.lean` – small example nets, the interaction system for unary addition, and reductions
+- `LeanInets/Examples.lean` – small example nets, the interaction system for unary arithmetic, and reductions
+- `LeanInets/Combinators.lean` – Lafont's interaction combinators, with a complete reduction to normal form
 
 See [PLAN.md](PLAN.md) for the roadmap.
 

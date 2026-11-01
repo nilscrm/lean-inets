@@ -52,8 +52,11 @@
    (`ReducesIn.le_of_normal`). The proof rests on contexts being determined by plugging in an
    active pair (`WireIso.ofPlugActivePair`) and on exchanging the two holes of a context
    (`plugExchange`).
-8. [ ] More examples: unary arithmetic rules (addition is done), erasure/duplication, interaction combinators
-   `γ, δ, ε`.
+8. [x] More examples: unary arithmetic (`Z`, `S`, `add`, `mul`, eraser and duplicator for
+   numerals); the interaction combinators `γ, δ, ε` (`Combinators.system`, every pair has a
+   rule), with a complete three-step reduction to normal form. General lemmas added along the
+   way: `step_activePair` (an active pair reduces to its rule), `Step.plug`/`Reduces.plug`
+   (reduction is closed under contexts, via `plugPlug`).
 
 ## Possible extensions
 
