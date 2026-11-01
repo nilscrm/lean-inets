@@ -17,6 +17,10 @@ in Lean 4 with Mathlib.
 - `LeanInets/Decompose.lean` – plugging a net into a context, active pairs up to wires, and
   cutting an active pair out of its net
 - `LeanInets/Reduction.lean` – one-step and multi-step reduction, normal forms, and redexes
+- `LeanInets/Context.lean` – plugging into contexts: renaming and exchanging holes, contexts are
+  determined by the active pair plugged into them
+- `LeanInets/Confluence.lean` – strong confluence, Church–Rosser, uniqueness of normal forms and
+  equal length of normalising reductions
 - `LeanInets/Examples.lean` – small example nets, the interaction system for unary addition, and reductions
 
 See [PLAN.md](PLAN.md) for the roadmap.

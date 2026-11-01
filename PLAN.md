@@ -44,8 +44,14 @@
    up to wires (`IsActivePairW`: principal ports connected through wires) whose symbols have a
    rule (`exists_step_iff`). The hard direction cuts an active pair out of its net
    (`removePair`, `equiv_plug_removePair`).
-7. [ ] Metatheory: strong confluence modulo `≈`; Church–Rosser, uniqueness of normal forms,
-   equal length of normalising reductions.
+7. [x] Metatheory: strong confluence modulo `≈` (`Step.strong_confluence`: the two steps
+   reduce the same active pair, the same pair from the other side, or disjoint pairs);
+   Church–Rosser (`Reduces.church_rosser`, via `Relation.church_rosser` on nets up to `≈`),
+   uniqueness of normal forms (`Reduces.normal_unique`), equal length of normalising
+   reductions (`ReducesIn.length_eq`), and no reduction is longer than a normalising one
+   (`ReducesIn.le_of_normal`). The proof rests on contexts being determined by plugging in an
+   active pair (`WireIso.ofPlugActivePair`) and on exchanging the two holes of a context
+   (`plugExchange`).
 8. [ ] More examples: unary arithmetic rules (addition is done), erasure/duplication, interaction combinators
    `γ, δ, ε`.
 
