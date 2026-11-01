@@ -37,19 +37,19 @@ section idNet
 
 variable {κ : Type} [Fintype κ]
 
-theorem idNet_conn_inl (k : κ) : (idNet S κ).Conn (.free (.inl k)) (.free (.inr k)) :=
+theorem idNet_partner_inl (k : κ) : (idNet S κ).Partner (.free (.inl k)) (.free (.inr k)) :=
   .single (step_wire (N := idNet S κ) k .l)
 
-theorem idNet_conn_inr (k : κ) : (idNet S κ).Conn (.free (.inr k)) (.free (.inl k)) :=
-  (idNet_conn_inl k).symm
+theorem idNet_partner_inr (k : κ) : (idNet S κ).Partner (.free (.inr k)) (.free (.inl k)) :=
+  (idNet_partner_inl k).symm
 
-theorem idNet_conn_inl_eq {k : κ} {y : (idNet S κ).TPort}
-    (h : (idNet S κ).Conn (.free (.inl k)) y) : y = .free (.inr k) :=
-  h.unique (idNet_conn_inl k)
+theorem idNet_partner_inl_eq {k : κ} {y : (idNet S κ).TPort}
+    (h : (idNet S κ).Partner (.free (.inl k)) y) : y = .free (.inr k) :=
+  h.unique (idNet_partner_inl k)
 
-theorem idNet_conn_inr_eq {k : κ} {y : (idNet S κ).TPort}
-    (h : (idNet S κ).Conn (.free (.inr k)) y) : y = .free (.inl k) :=
-  h.unique (idNet_conn_inr k)
+theorem idNet_partner_inr_eq {k : κ} {y : (idNet S κ).TPort}
+    (h : (idNet S κ).Partner (.free (.inr k)) y) : y = .free (.inl k) :=
+  h.unique (idNet_partner_inr k)
 
 end idNet
 
@@ -106,38 +106,37 @@ theorem idNetGlueTPort_embRT (b : _root_.Port N.label Empty ι) :
   rcases b with _ | _ | _ | ⟨⟨⟩, _⟩ <;> rfl
 
 /-- Gluing the identity net on the left changes a net only up to wires. -/
-def idNetGlue : WireIso ((idNet S κ).glue N) N where
-  agent := (Equiv.emptySum Empty N.Agent : (idNet S κ).Agent ⊕ N.Agent ≃ N.Agent)
-  label_agent := idNetGlue_label_agent N
-  conn_map x y h := by
-    change N.Conn (idNetGlueTPort N x) (idNetGlueTPort N y)
-    rcases cases_tport (idNet S κ) N x with ⟨b, rfl⟩ | ⟨b, rfl⟩
-    · rcases b with k | a | ⟨a, _⟩ | ⟨⟨⟩, _⟩
-      rotate_left
-      · exact (a : Empty).elim
-      · exact (a : Empty).elim
-      rw [idNetGlueTPort_embLT]
-      cases GlueChain.of_conn_embLT h with
-      | stopL hc => exact absurd (idNet_conn_inl_eq hc) (liftLT_ne_free_inr _ _)
-      | crossL hc c =>
-        cases idNet_conn_inl_eq hc
-        cases c with
+def idNetGlue : WireIso ((idNet S κ).glue N) N :=
+  .ofPartner (Equiv.emptySum Empty N.Agent : (idNet S κ).Agent ⊕ N.Agent ≃ N.Agent)
+    (idNetGlue_label_agent N) fun x y h => by
+      change N.Partner (idNetGlueTPort N x) (idNetGlueTPort N y)
+      rcases cases_tport (idNet S κ) N x with ⟨b, rfl⟩ | ⟨b, rfl⟩
+      · rcases b with k | a | ⟨a, _⟩ | ⟨⟨⟩, _⟩
+        rotate_left
+        · exact (a : Empty).elim
+        · exact (a : Empty).elim
+        rw [idNetGlueTPort_embLT]
+        cases GlueChain.of_partner_embLT h with
+        | stopL hc => exact absurd (idNet_partner_inl_eq hc) (liftLT_ne_free_inr _ _)
+        | crossL hc c =>
+          cases idNet_partner_inl_eq hc
+          cases c with
+          | stopR hc => rwa [idNetGlueTPort_embRT]
+          | crossR hc c =>
+            cases c with
+            | stopL hc' =>
+              obtain rfl := liftLT_eq_free_inl (idNet_partner_inr_eq hc')
+              exact hc
+            | crossL hc' _ => exact absurd (idNet_partner_inr_eq hc') nofun
+      · rw [idNetGlueTPort_embRT]
+        cases GlueChain.of_partner_embRT h with
         | stopR hc => rwa [idNetGlueTPort_embRT]
         | crossR hc c =>
           cases c with
           | stopL hc' =>
-            obtain rfl := liftLT_eq_free_inl (idNet_conn_inr_eq hc')
+            obtain rfl := liftLT_eq_free_inl (idNet_partner_inr_eq hc')
             exact hc
-          | crossL hc' _ => exact absurd (idNet_conn_inr_eq hc') nofun
-    · rw [idNetGlueTPort_embRT]
-      cases GlueChain.of_conn_embRT h with
-      | stopR hc => rwa [idNetGlueTPort_embRT]
-      | crossR hc c =>
-        cases c with
-        | stopL hc' =>
-          obtain rfl := liftLT_eq_free_inl (idNet_conn_inr_eq hc')
-          exact hc
-        | crossL hc' _ => exact absurd (idNet_conn_inr_eq hc') nofun
+          | crossL hc' _ => exact absurd (idNet_partner_inr_eq hc') nofun
 
 /-- The identity net is a left unit for gluing, up to `≈`. -/
 theorem idNet_glue : (idNet S κ).glue N ≈ N := (idNetGlue N).equiv
@@ -169,38 +168,37 @@ theorem glueIdNetTPort_embRT (k : κ) :
     glueIdNetTPort N (embRT N (idNet S κ) (.free k)) = .free (.inr k) := rfl
 
 /-- Gluing the identity net on the right changes a net only up to wires. -/
-def glueIdNet : WireIso (N.glue (idNet S κ)) N where
-  agent := (Equiv.sumEmpty N.Agent Empty : N.Agent ⊕ (idNet S κ).Agent ≃ N.Agent)
-  label_agent := glueIdNet_label_agent N
-  conn_map x y h := by
-    change N.Conn (glueIdNetTPort N x) (glueIdNetTPort N y)
-    rcases cases_tport N (idNet S κ) x with ⟨b, rfl⟩ | ⟨b, rfl⟩
-    · rw [glueIdNetTPort_embLT]
-      cases GlueChain.of_conn_embLT h with
-      | stopL hc => rwa [glueIdNetTPort_embLT]
-      | crossL hc c =>
-        cases c with
-        | stopR hc' =>
-          obtain rfl := liftRT_eq_free_inr (idNet_conn_inl_eq hc')
-          exact hc
-        | crossR hc' _ => exact absurd (idNet_conn_inl_eq hc') nofun
-    · rcases b with k | a | ⟨a, _⟩ | ⟨⟨⟩, _⟩
-      rotate_left
-      · exact (a : Empty).elim
-      · exact (a : Empty).elim
-      rw [glueIdNetTPort_embRT]
-      cases GlueChain.of_conn_embRT h with
-      | stopR hc => exact absurd (idNet_conn_inr_eq hc) (liftRT_ne_free_inl _ _)
-      | crossR hc c =>
-        cases idNet_conn_inr_eq hc
-        cases c with
+def glueIdNet : WireIso (N.glue (idNet S κ)) N :=
+  .ofPartner (Equiv.sumEmpty N.Agent Empty : N.Agent ⊕ (idNet S κ).Agent ≃ N.Agent)
+    (glueIdNet_label_agent N) fun x y h => by
+      change N.Partner (glueIdNetTPort N x) (glueIdNetTPort N y)
+      rcases cases_tport N (idNet S κ) x with ⟨b, rfl⟩ | ⟨b, rfl⟩
+      · rw [glueIdNetTPort_embLT]
+        cases GlueChain.of_partner_embLT h with
         | stopL hc => rwa [glueIdNetTPort_embLT]
         | crossL hc c =>
           cases c with
           | stopR hc' =>
-            obtain rfl := liftRT_eq_free_inr (idNet_conn_inl_eq hc')
+            obtain rfl := liftRT_eq_free_inr (idNet_partner_inl_eq hc')
             exact hc
-          | crossR hc' _ => exact absurd (idNet_conn_inl_eq hc') nofun
+          | crossR hc' _ => exact absurd (idNet_partner_inl_eq hc') nofun
+      · rcases b with k | a | ⟨a, _⟩ | ⟨⟨⟩, _⟩
+        rotate_left
+        · exact (a : Empty).elim
+        · exact (a : Empty).elim
+        rw [glueIdNetTPort_embRT]
+        cases GlueChain.of_partner_embRT h with
+        | stopR hc => exact absurd (idNet_partner_inr_eq hc) (liftRT_ne_free_inl _ _)
+        | crossR hc c =>
+          cases idNet_partner_inr_eq hc
+          cases c with
+          | stopL hc => rwa [glueIdNetTPort_embLT]
+          | crossL hc c =>
+            cases c with
+            | stopR hc' =>
+              obtain rfl := liftRT_eq_free_inr (idNet_partner_inl_eq hc')
+              exact hc
+            | crossR hc' _ => exact absurd (idNet_partner_inl_eq hc') nofun
 
 /-- The identity net is a right unit for gluing, up to `≈`. -/
 theorem glue_idNet : N.glue (idNet S κ) ≈ N := (glueIdNet N).equiv

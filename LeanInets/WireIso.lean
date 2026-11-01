@@ -6,13 +6,16 @@ public import LeanInets.Connect
 # Isomorphism up to wires
 
 Two nets are *isomorphic up to wires* if there is a label-preserving bijection between their
-agents that preserves the connections between terminal ports. Wires themselves are ignored,
-so chains of wires, the orientation of wires and closed loops of wires do not matter. This is
-the equivalence `≈` on nets.
+agents whose induced map of terminal ports preserves and reflects `Connected`. Wires
+themselves are ignored, so chains of wires, the orientation of wires and closed loops of
+wires do not matter. This is the equivalence `≈` on nets.
+
+Since two distinct terminal ports are connected iff they are partners, it suffices to show
+that partners are mapped to partners (`WireIso.ofPartner`).
 
 Isomorphic nets are isomorphic up to wires, and reindexing and gluing respect `≈`. For gluing,
-a connection in the glued net alternates between connections in the two parts, crossing the
-glued interface in between (`GlueChain`).
+the walk from a terminal port of the glued net alternates between walks in the two parts,
+crossing the glued interface in between (`GlueChain`).
 -/
 
 @[expose] public section
@@ -22,18 +25,33 @@ namespace Net
 variable {S : Signature} {ι : Type}
 
 /-- An isomorphism up to wires between nets `N` and `M` with the same interface: a
-label-preserving bijection of agents whose induced map of terminal ports preserves
-connections. -/
+label-preserving bijection of agents whose induced map of terminal ports preserves and
+reflects connectedness. -/
 structure WireIso (N M : Net S ι) where
   /-- The bijection on agents. -/
   agent : N.Agent ≃ M.Agent
   label_agent : ∀ a, M.label (agent a) = N.label a
-  conn_map : ∀ x y, N.Conn x y →
-    M.Conn (x.map agent label_agent id id) (y.map agent label_agent id id)
+  connected_iff : ∀ x y : N.TPort,
+    M.Connected (M.tport (x.map agent label_agent id id))
+      (M.tport (y.map agent label_agent id id)) ↔ N.Connected (N.tport x) (N.tport y)
 
 namespace WireIso
 
 variable {N M K : Net S ι}
+
+/-- To build an isomorphism up to wires, it suffices to show that partners are mapped to
+partners. -/
+def ofPartner (agent : N.Agent ≃ M.Agent) (label_agent : ∀ a, M.label (agent a) = N.label a)
+    (partner_map : ∀ x y, N.Partner x y →
+      M.Partner (x.map agent label_agent id id) (y.map agent label_agent id id)) :
+    WireIso N M where
+  agent := agent
+  label_agent := label_agent
+  connected_iff x y := by
+    have hinj : Function.Injective fun z : N.TPort => z.map agent label_agent id id :=
+      Port.map_injective _ _ _ _ agent.injective Function.injective_id Function.injective_id
+    rw [connected_tport_iff, connected_tport_iff, hinj.eq_iff]
+    exact or_congr_right ⟨partner_reflect _ hinj partner_map, partner_map x y⟩
 
 /-- The bijection on terminal ports induced by an isomorphism up to wires. -/
 def port (e : WireIso N M) : N.TPort ≃ M.TPort :=
@@ -43,38 +61,46 @@ variable (e : WireIso N M)
 
 @[simp] theorem port_free (i : ι) : e.port (.free i) = .free i := rfl
 
-theorem conn_port {x y : N.TPort} (h : N.Conn x y) : M.Conn (e.port x) (e.port y) :=
-  e.conn_map x y h
+theorem connected_port_iff {x y : N.TPort} :
+    M.Connected (M.tport (e.port x)) (M.tport (e.port y)) ↔
+      N.Connected (N.tport x) (N.tport y) :=
+  e.connected_iff x y
 
-/-- Isomorphisms up to wires also reflect connections. -/
-theorem conn_port_iff {x y : N.TPort} : M.Conn (e.port x) (e.port y) ↔ N.Conn x y :=
-  ⟨conn_reflect e.port e.port.injective fun _ _ => e.conn_port, e.conn_port⟩
+/-- Isomorphisms up to wires map partners to partners. -/
+theorem partner_port {x y : N.TPort} (h : N.Partner x y) : M.Partner (e.port x) (e.port y) := by
+  rcases connected_tport_iff.mp (e.connected_port_iff.mpr h.connected) with hxy | hxy
+  · obtain rfl := e.port.injective hxy
+    obtain ⟨z, hz⟩ := Partner.exists (e.port x)
+    obtain ⟨w, rfl⟩ := e.port.surjective z
+    rcases connected_tport_iff.mp (e.connected_port_iff.mp hz.connected) with rfl | hw
+    · exact hz
+    · rwa [← h.unique hw] at hz
+  · exact hxy
+
+theorem partner_port_iff {x y : N.TPort} : M.Partner (e.port x) (e.port y) ↔ N.Partner x y :=
+  ⟨partner_reflect e.port e.port.injective fun _ _ => e.partner_port, e.partner_port⟩
 
 /-- The identity. -/
-@[refl] protected def refl (N : Net S ι) : WireIso N N where
-  agent := .refl _
-  label_agent _ := rfl
-  conn_map x y h := by simpa using h
+@[refl] protected def refl (N : Net S ι) : WireIso N N :=
+  .ofPartner (.refl _) (fun _ => rfl) fun x y h => by simpa using h
 
 /-- The inverse. -/
-@[symm] protected def symm : WireIso M N where
-  agent := e.agent.symm
-  label_agent a := by rw [← e.label_agent, e.agent.apply_symm_apply]
-  conn_map x y h := by
-    change N.Conn (e.port.symm x) (e.port.symm y)
-    rw [← e.conn_port_iff, Equiv.apply_symm_apply, Equiv.apply_symm_apply]
-    exact h
+@[symm] protected def symm : WireIso M N :=
+  .ofPartner e.agent.symm (fun a => by rw [← e.label_agent, e.agent.apply_symm_apply])
+    fun x y h => by
+      change N.Partner (e.port.symm x) (e.port.symm y)
+      rw [← e.partner_port_iff, Equiv.apply_symm_apply, Equiv.apply_symm_apply]
+      exact h
 
 /-- The composition. -/
-@[trans] protected def trans (e' : WireIso M K) : WireIso N K where
-  agent := e.agent.trans e'.agent
-  label_agent a := (e'.label_agent _).trans (e.label_agent a)
-  conn_map x y h := by
-    have hp (z : N.TPort) : z.map (e.agent.trans e'.agent)
-        (fun a => (e'.label_agent _).trans (e.label_agent a)) id id = e'.port (e.port z) := by
-      cases z <;> rfl
-    rw [hp, hp]
-    exact e'.conn_port (e.conn_port h)
+@[trans] protected def trans (e' : WireIso M K) : WireIso N K :=
+  .ofPartner (e.agent.trans e'.agent) (fun a => (e'.label_agent _).trans (e.label_agent a))
+    fun x y h => by
+      have hp (z : N.TPort) : z.map (e.agent.trans e'.agent)
+          (fun a => (e'.label_agent _).trans (e.label_agent a)) id id = e'.port (e.port z) := by
+        cases z <;> rfl
+      rw [hp, hp]
+      exact e'.partner_port (e.partner_port h)
 
 end WireIso
 
@@ -105,10 +131,8 @@ theorem step_port {p q : N.Port} (h : N.Step p q) : M.Step (e.port p) (e.port q)
   exact step_wire _ _
 
 /-- An isomorphism is an isomorphism up to wires. -/
-def wireIso : WireIso N M where
-  agent := e.agent
-  label_agent := e.label_agent
-  conn_map x y h := by
+def wireIso : WireIso N M :=
+  .ofPartner e.agent e.label_agent fun x y h => by
     have := reflTransGen_map e.port (fun _ _ => e.step_port) h
     rwa [← link_port, port_tport, port_tport] at this
 
@@ -139,29 +163,28 @@ theorem step_reindex {p q : N.Port} (h : N.Step p q) :
   rw [← reindex_link]
   exact step_wire (N := N.reindex σ) w s
 
-theorem conn_reindex {x y : N.TPort} (h : N.Conn x y) :
-    (N.reindex σ).Conn (N.reindexTPort σ x) (N.reindexTPort σ y) := by
+theorem partner_reindex {x y : N.TPort} (h : N.Partner x y) :
+    (N.reindex σ).Partner (N.reindexTPort σ x) (N.reindexTPort σ y) := by
   have := reflTransGen_map (M := N.reindex σ) (N.reindexPort σ) (fun _ _ h => step_reindex σ N h) h
   rwa [← reindex_link, reindexPort_tport, reindexPort_tport] at this
 
-theorem conn_reindex_iff {x y : N.TPort} :
-    (N.reindex σ).Conn (N.reindexTPort σ x) (N.reindexTPort σ y) ↔ N.Conn x y :=
-  ⟨conn_reflect _ (N.reindexTPort σ).injective fun _ _ => conn_reindex σ N, conn_reindex σ N⟩
+theorem partner_reindex_iff {x y : N.TPort} :
+    (N.reindex σ).Partner (N.reindexTPort σ x) (N.reindexTPort σ y) ↔ N.Partner x y :=
+  ⟨partner_reflect _ (N.reindexTPort σ).injective fun _ _ => partner_reindex σ N,
+    partner_reindex σ N⟩
 
 variable {N} {M : Net S ι}
 
 /-- Reindexing respects isomorphisms up to wires. -/
-def WireIso.reindex (e : WireIso N M) : WireIso (N.reindex σ) (M.reindex σ) where
-  agent := e.agent
-  label_agent := e.label_agent
-  conn_map x y h := by
+def WireIso.reindex (e : WireIso N M) : WireIso (N.reindex σ) (M.reindex σ) :=
+  .ofPartner e.agent e.label_agent fun x y h => by
     obtain ⟨x, rfl⟩ := (N.reindexTPort σ).surjective x
     obtain ⟨y, rfl⟩ := (N.reindexTPort σ).surjective y
     have hp (z : N.TPort) : (N.reindexTPort σ z).map (label' := M.label) e.agent e.label_agent
         id id = M.reindexTPort σ (e.port z) := by
       rcases z with _ | _ | _ | ⟨⟨⟩, _⟩ <;> rfl
-    rw [hp, hp, conn_reindex_iff]
-    exact e.conn_port ((conn_reindex_iff σ N).mp h)
+    rw [hp, hp, partner_reindex_iff]
+    exact e.partner_port ((partner_reindex_iff σ N).mp h)
 
 theorem reindex_equiv {N M : Net S ι} (h : N ≈ M) : N.reindex σ ≈ M.reindex σ :=
   let ⟨e⟩ := h; (e.reindex σ).equiv
@@ -242,19 +265,19 @@ end Glue
 
 open Glue
 
-/-- A connection in the glued net, decomposed into connections in `N` and in `M`.
+/-- The walk from a terminal port of the glued net, decomposed into walks in `N` and in `M`.
 `GlueChain (.inl x) y` says that the walk from the terminal port `x` of `N` reaches `y`,
 crossing the glued interface any number of times. -/
 inductive GlueChain : N.TPort ⊕ M.TPort → (N.glue M).TPort → Prop
   /-- The walk reaches a terminal port of `N` that is not glued. -/
-  | stopL {x : N.TPort} {b} : N.Conn x (liftLT N b) → GlueChain (.inl x) (embLT N M b)
+  | stopL {x : N.TPort} {b} : N.Partner x (liftLT N b) → GlueChain (.inl x) (embLT N M b)
   /-- The walk reaches a terminal port of `M` that is not glued. -/
-  | stopR {x : M.TPort} {b} : M.Conn x (liftRT M b) → GlueChain (.inr x) (embRT N M b)
+  | stopR {x : M.TPort} {b} : M.Partner x (liftRT M b) → GlueChain (.inr x) (embRT N M b)
   /-- The walk reaches the glued port `k` of `N` and continues in `M`. -/
-  | crossL {x : N.TPort} {k : κ} {y} : N.Conn x (.free (.inr k)) →
+  | crossL {x : N.TPort} {k : κ} {y} : N.Partner x (.free (.inr k)) →
       GlueChain (.inr (.free (.inl k))) y → GlueChain (.inl x) y
   /-- The walk reaches the glued port `k` of `M` and continues in `N`. -/
-  | crossR {x : M.TPort} {k : κ} {y} : M.Conn x (.free (.inl k)) →
+  | crossR {x : M.TPort} {k : κ} {y} : M.Partner x (.free (.inl k)) →
       GlueChain (.inl (.free (.inr k))) y → GlueChain (.inr x) y
 
 /-- The starting point of a `GlueChain`, as a port of the glued net. -/
@@ -264,7 +287,7 @@ def gluePos : N.TPort ⊕ M.TPort → (N.glue M).Port
 
 variable {N M}
 
-/-- A `GlueChain` is a connection in the glued net. -/
+/-- A `GlueChain` is a walk in the glued net. -/
 theorem GlueChain.sound {z y} (h : GlueChain N M z y) :
     Relation.ReflTransGen (N.glue M).Step ((N.glue M).link (gluePos N M z))
       ((N.glue M).tport y) := by
@@ -358,24 +381,24 @@ theorem GlueChain.complete {u : (N.glue M).Port} {y : (N.glue M).TPort}
         exact hstep.elim
       all_goals exact hR x _ hpre trivial hu
 
-theorem GlueChain.of_conn_embLT {b : _root_.Port N.label Empty ι} {y : (N.glue M).TPort}
-    (h : (N.glue M).Conn (embLT N M b) y) : GlueChain N M (.inl (liftLT N b)) y := by
-  rw [Conn, tport_embLT, glue_link_inl] at h
+theorem GlueChain.of_partner_embLT {b : _root_.Port N.label Empty ι} {y : (N.glue M).TPort}
+    (h : (N.glue M).Partner (embLT N M b) y) : GlueChain N M (.inl (liftLT N b)) y := by
+  rw [Partner, tport_embLT, glue_link_inl] at h
   exact (GlueChain.complete h).1 _ _ .refl rfl
 
-theorem GlueChain.of_conn_embRT {b : _root_.Port M.label Empty ι'} {y : (N.glue M).TPort}
-    (h : (N.glue M).Conn (embRT N M b) y) : GlueChain N M (.inr (liftRT M b)) y := by
-  rw [Conn, tport_embRT, glue_link_inr] at h
+theorem GlueChain.of_partner_embRT {b : _root_.Port M.label Empty ι'} {y : (N.glue M).TPort}
+    (h : (N.glue M).Partner (embRT N M b) y) : GlueChain N M (.inr (liftRT M b)) y := by
+  rw [Partner, tport_embRT, glue_link_inr] at h
   exact (GlueChain.complete h).2 _ _ .refl rfl
 
-theorem GlueChain.conn_embLT {b : _root_.Port N.label Empty ι} {y : (N.glue M).TPort}
-    (h : GlueChain N M (.inl (liftLT N b)) y) : (N.glue M).Conn (embLT N M b) y := by
-  rw [Conn, tport_embLT]
+theorem GlueChain.partner_embLT {b : _root_.Port N.label Empty ι} {y : (N.glue M).TPort}
+    (h : GlueChain N M (.inl (liftLT N b)) y) : (N.glue M).Partner (embLT N M b) y := by
+  rw [Partner, tport_embLT]
   exact h.sound
 
-theorem GlueChain.conn_embRT {b : _root_.Port M.label Empty ι'} {y : (N.glue M).TPort}
-    (h : GlueChain N M (.inr (liftRT M b)) y) : (N.glue M).Conn (embRT N M b) y := by
-  rw [Conn, tport_embRT]
+theorem GlueChain.partner_embRT {b : _root_.Port M.label Empty ι'} {y : (N.glue M).TPort}
+    (h : GlueChain N M (.inr (liftRT M b)) y) : (N.glue M).Partner (embRT N M b) y := by
+  rw [Partner, tport_embRT]
   exact h.sound
 
 /-! #### Transporting chains along isomorphisms up to wires -/
@@ -412,32 +435,30 @@ theorem GlueChain.map {z y} (h : GlueChain N M z y) :
   induction h with
   | @stopL x b h =>
     rw [WireIso.glueTPort_embLT]
-    have := e.conn_port h
+    have := e.partner_port h
     rw [WireIso.port_liftLT] at this
     exact .stopL this
   | @stopR x b h =>
     rw [WireIso.glueTPort_embRT]
-    have := e'.conn_port h
+    have := e'.partner_port h
     rw [WireIso.port_liftRT] at this
     exact .stopR this
-  | crossL h _ ih => exact .crossL (e.conn_port h) ih
-  | crossR h _ ih => exact .crossR (e'.conn_port h) ih
+  | crossL h _ ih => exact .crossL (e.partner_port h) ih
+  | crossR h _ ih => exact .crossR (e'.partner_port h) ih
 
 /-- Gluing respects isomorphisms up to wires. -/
-def WireIso.glue : WireIso (N.glue M) (N'.glue M') where
-  agent := e.agent.sumCongr e'.agent
-  label_agent := e.glue_label_agent e'
-  conn_map x y h := by
-    change (N'.glue M').Conn (e.glueTPort e' x) (e.glueTPort e' y)
+def WireIso.glue : WireIso (N.glue M) (N'.glue M') :=
+  .ofPartner (e.agent.sumCongr e'.agent) (e.glue_label_agent e') fun x y h => by
+    change (N'.glue M').Partner (e.glueTPort e' x) (e.glueTPort e' y)
     rcases cases_tport N M x with ⟨b, rfl⟩ | ⟨b, rfl⟩
-    · have := (GlueChain.of_conn_embLT h).map e e'
+    · have := (GlueChain.of_partner_embLT h).map e e'
       rw [Sum.map_inl, WireIso.port_liftLT] at this
       rw [WireIso.glueTPort_embLT]
-      exact this.conn_embLT
-    · have := (GlueChain.of_conn_embRT h).map e e'
+      exact this.partner_embLT
+    · have := (GlueChain.of_partner_embRT h).map e e'
       rw [Sum.map_inr, WireIso.port_liftRT] at this
       rw [WireIso.glueTPort_embRT]
-      exact this.conn_embRT
+      exact this.partner_embRT
 
 /-- Gluing respects equivalence. -/
 theorem glue_equiv {N N' : Net S (ι ⊕ κ)} {M M' : Net S (κ ⊕ ι')} (hN : N ≈ N') (hM : M ≈ M') :

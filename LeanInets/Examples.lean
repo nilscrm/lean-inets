@@ -55,22 +55,25 @@ example (S : Signature) : ¬ (ident S).Isomorphic (identFlip S) := by
 `ident` and `identFlip` are not isomorphic, but they have the same connections: in both, the
 free port `l` is connected to `r`. -/
 
-theorem ident_conn (S : Signature) : (ident S).Conn (.free .l) (.free .r) :=
+/-- In `ident`, the free ports and both ends of the wire form a single path. -/
+example (S : Signature) : (ident S).Connected (.free .l) (.wire () .r) :=
+  (Net.connected_link (N := ident S) _).trans (Net.connected_flipEnd (N := ident S) _)
+
+theorem ident_partner (S : Signature) : (ident S).Partner (.free .l) (.free .r) :=
   .single (Net.step_wire (N := ident S) () .l)
 
-theorem identFlip_conn (S : Signature) : (identFlip S).Conn (.free .l) (.free .r) :=
+theorem identFlip_partner (S : Signature) : (identFlip S).Partner (.free .l) (.free .r) :=
   .single (Net.step_wire (N := identFlip S) () .r)
 
 /-- The two orientations of the identity net are isomorphic up to wires. -/
-def identWireIso (S : Signature) : Net.WireIso (ident S) (identFlip S) where
-  agent := .refl _
-  label_agent a := a.elim
-  conn_map x y h := by
-    rcases x with (_ | _) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩
-    · obtain rfl := h.unique (ident_conn S)
-      exact identFlip_conn S
-    · obtain rfl := h.unique (ident_conn S).symm
-      exact (identFlip_conn S).symm
+def identWireIso (S : Signature) : Net.WireIso (ident S) (identFlip S) :=
+  .ofPartner (.refl _)
+    (fun a => a.elim) fun x y h => by
+      rcases x with (_ | _) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩
+      · obtain rfl := h.unique (ident_partner S)
+        exact identFlip_partner S
+      · obtain rfl := h.unique (ident_partner S).symm
+        exact (identFlip_partner S).symm
 
 example (S : Signature) : ident S ≈ identFlip S := (identWireIso S).equiv
 
@@ -101,9 +104,7 @@ def empty (S : Signature) : Net S Empty where
 /-- Vicious circles of wires vanish up to `≈`. -/
 example (S : Signature) : loop S ≈ empty S :=
   Net.WireIso.equiv
-    { agent := .refl _
-      label_agent := nofun
-      conn_map := by rintro (⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩) }
+    (.ofPartner (.refl _) nofun (by rintro (⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩)))
 
 /-! ### Unary arithmetic
 

@@ -10,7 +10,7 @@ in Lean 4 with Mathlib.
 - `LeanInets/Net.lean` – nets and active pairs
 - `LeanInets/Iso.lean` – isomorphism of nets
 - `LeanInets/Glue.lean` – reindexing interfaces and gluing nets
-- `LeanInets/Connect.lean` – connections between terminal ports through wires
+- `LeanInets/Connect.lean` – connected ports (paths of links and wires) and partners of terminal ports
 - `LeanInets/WireIso.lean` – isomorphism up to wires (the equivalence `≈`); gluing respects it
 - `LeanInets/Unit.lean` – the identity net is a unit for gluing up to `≈`
 - `LeanInets/Examples.lean` – small example nets
