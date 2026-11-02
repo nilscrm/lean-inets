@@ -1,12 +1,13 @@
 module
 
-public import LeanInets.Net
+public import LeanInets.Renaming
 
 /-!
 # Isomorphism of nets and reindexing
 
 An isomorphism between nets `N` and `M` consists of bijections between their agents, their
-wires and their interfaces that preserve labels and links. Since the interface map is part of
+wires and their interfaces that preserve labels and links: a `Renaming` together with a bijection
+of wires. Since the interface map is part of
 the data, nets with different interfaces can be isomorphic: this lets the structural laws of
 union and trace be stated without reindexing every net by hand.
 
@@ -23,15 +24,11 @@ namespace Net
 
 variable {S : Signature} {ι ι' ι'' : Type}
 
-/-- An isomorphism between the nets `N` and `M`. -/
-structure Iso (N : Net S ι) (M : Net S ι') where
-  /-- The bijection on agents. -/
-  agent : N.Agent ≃ M.Agent
+/-- An isomorphism between the nets `N` and `M`: a renaming together with a bijection of wires,
+preserving links. -/
+structure Iso (N : Net S ι) (M : Net S ι') extends Renaming N M where
   /-- The bijection on wires. -/
   wire : N.Wire ≃ M.Wire
-  /-- The bijection on interfaces. -/
-  iface : ι ≃ ι'
-  label_agent : ∀ a, M.label (agent a) = N.label a
   link_map : ∀ p, M.link (Port.map agent label_agent wire iface p) =
     Port.map agent label_agent wire iface (N.link p)
 
@@ -40,63 +37,41 @@ namespace Iso
 variable {N : Net S ι} {M : Net S ι'} {K : Net S ι''}
 
 /-- The bijection on ports induced by an isomorphism. -/
-def port (e : Iso N M) : N.Port ≃ M.Port :=
-  Port.mapEquiv e.agent e.label_agent e.wire e.iface
+abbrev port (e : Iso N M) : N.Port ≃ M.Port := e.toRenaming.port e.wire
 
 variable (e : Iso N M)
-
-@[simp] theorem port_free (i : ι) : e.port (.free i) = .free (e.iface i) := rfl
-@[simp] theorem port_pri (a : N.Agent) : e.port (.pri a) = .pri (e.agent a) := rfl
-@[simp] theorem port_aux (a : N.Agent) (k) :
-    e.port (.aux a k) = .aux (e.agent a) (k.cast (congrArg S.arity (e.label_agent a).symm)) :=
-  rfl
-@[simp] theorem port_wire (w : N.Wire) (s : Side) :
-    e.port (.wire w s) = .wire (e.wire w) s := rfl
 
 theorem link_port (p : N.Port) : M.link (e.port p) = e.port (N.link p) := e.link_map p
 
 /-- The identity isomorphism. -/
 @[refl] protected def refl (N : Net S ι) : Iso N N where
-  agent := .refl _
+  toRenaming := .refl N
   wire := .refl _
-  iface := .refl _
-  label_agent _ := rfl
-  link_map p := by simp only [Equiv.coe_refl, Port.map_id]
+  link_map p := (congrArg N.link (Renaming.refl_port p)).trans (Renaming.refl_port _).symm
 
 /-- The inverse of an isomorphism. -/
 @[symm] protected def symm : Iso M N where
-  agent := e.agent.symm
+  toRenaming := e.toRenaming.symm
   wire := e.wire.symm
-  iface := e.iface.symm
-  label_agent a := by rw [← e.label_agent, e.agent.apply_symm_apply]
   link_map p := by
     change N.link (e.port.symm p) = e.port.symm (M.link p)
     rw [Equiv.eq_symm_apply, ← link_port, Equiv.apply_symm_apply]
 
 /-- The composition of isomorphisms. -/
 @[trans] protected def trans (e' : Iso M K) : Iso N K where
-  agent := e.agent.trans e'.agent
+  toRenaming := e.toRenaming.trans e'.toRenaming
   wire := e.wire.trans e'.wire
-  iface := e.iface.trans e'.iface
-  label_agent a := (e'.label_agent _).trans (e.label_agent a)
   link_map p := by
-    have h (q : N.Port) : Port.map (e.agent.trans e'.agent)
-        (fun a => (e'.label_agent _).trans (e.label_agent a)) (e.wire.trans e'.wire)
-        (e.iface.trans e'.iface) q = e'.port (e.port q) := by
-      cases q <;> rfl
-    rw [h, h, link_port, link_port]
-
-@[simp] theorem symm_port (p : M.Port) : e.symm.port p = e.port.symm p := rfl
-
-@[simp] theorem trans_port (e' : Iso M K) (p : N.Port) :
-    (e.trans e').port p = e'.port (e.port p) := by
-  cases p <;> rfl
+    change K.link ((e.toRenaming.trans e'.toRenaming).port (e.wire.trans e'.wire) p) =
+      (e.toRenaming.trans e'.toRenaming).port (e.wire.trans e'.wire) (N.link p)
+    rw [Renaming.trans_port, Renaming.trans_port, link_port, link_port]
 
 /-- Isomorphisms preserve and reflect active pairs. -/
 theorem isActivePair_iff {a b : N.Agent} :
     M.IsActivePair (e.agent a) (e.agent b) ↔ N.IsActivePair a b := by
-  unfold IsActivePair
-  rw [← port_pri, ← port_pri, link_port, e.port.injective.eq_iff]
+  change M.link (e.port (.pri a)) = e.port (.pri b) ↔ _
+  rw [link_port, e.port.injective.eq_iff]
+  rfl
 
 end Iso
 
@@ -131,23 +106,18 @@ theorem reindex_link (p : N.Port) :
 /-- A net is isomorphic to its reindexing. -/
 def reindexIso : Iso N (N.reindex σ) where
   agent := .refl _
-  wire := .refl _
   iface := σ
   label_agent _ := rfl
+  wire := .refl _
   link_map := reindex_link σ N
 
 /-- Swap the two halves of an interface. -/
 abbrev swap {α β : Type} (N : Net S (α ⊕ β)) : Net S (β ⊕ α) :=
   N.reindex (Equiv.sumComm _ _)
 
-/-- Swapping the interface twice gives back the original net. Its interface map is the identity
-(`swapSwap_iface`). -/
+/-- Swapping the interface twice gives back the original net. -/
 def swapSwap {α β : Type} (N : Net S (α ⊕ β)) : Iso N.swap.swap N :=
   ((reindexIso _ N).trans (reindexIso _ _)).symm
-
-theorem swapSwap_iface {α β : Type} (N : Net S (α ⊕ β)) (i : α ⊕ β) :
-    (swapSwap N).iface i = i := by
-  rcases i with _ | _ <;> rfl
 
 end reindex
 

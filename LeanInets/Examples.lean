@@ -48,7 +48,7 @@ def identFlip (S : Signature) : Net S Side where
 identity net has to exchange the two free ports. -/
 example (S : Signature) (e : Net.Iso (ident S) (identFlip S)) : e.iface .l = .r := by
   have h := e.link_port (.free .l)
-  rw [Net.Iso.port_free] at h
+  rw [Net.Renaming.port_free] at h
   generalize e.iface .l = s at h
   cases s
   · cases h
@@ -77,7 +77,7 @@ def identWireIso (S : Signature) : Net.WireIso (ident S) (identFlip S) where
     · obtain rfl := h.unique (ident_partner S).symm
       exact (identFlip_partner S).symm
 
-example (S : Signature) : ident S ≈ identFlip S := (identWireIso S).equiv fun _ => rfl
+example (S : Signature) : ident S ≈ identFlip S := (identWireIso S).equiv
 
 /-- A vicious circle: a wire whose two ends are linked to each other. -/
 def loop (S : Signature) : Net S Empty where

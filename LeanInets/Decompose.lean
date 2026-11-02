@@ -382,6 +382,6 @@ noncomputable def wireIsoPlugRemovePair {N : Net S ι} {a b : N.Agent} (h : N.Is
 pair plugged into the context `N.removePair a b`. -/
 theorem equiv_plug_removePair {N : Net S ι} {a b : N.Agent} (h : N.IsActivePairW a b) :
     N ≈ (N.removePair a b h.1).plug (activePair (N.label a) (N.label b)) :=
-  (wireIsoPlugRemovePair h).equiv fun _ => rfl
+  (wireIsoPlugRemovePair h).equiv
 
 end Net

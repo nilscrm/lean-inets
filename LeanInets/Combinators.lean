@@ -167,17 +167,16 @@ def system : InteractionSystem sig where
       | exact .some (Setoid.refl _)
       | exact .some (Setoid.symm (Net.swap_swap_equiv _))
     · refine .some ?_
-      have := (wiresSwap (Equiv.swap (0 : Fin 2) 1)).equiv fun _ => rfl
+      have := (wiresSwap (Equiv.swap (0 : Fin 2) 1)).equiv
       rw [Equiv.symm_swap] at this
       exact Setoid.symm this
-    · exact .some (Setoid.symm ((wiresSwap (.refl _)).equiv fun _ => rfl))
+    · exact .some (Setoid.symm (wiresSwap (.refl _)).equiv)
     · exact .some (WireIso.equiv
         { agent := .refl _
           iface := .refl _
           label_agent := nofun
           partner_map := fun {x} => by
-            rcases x with (⟨_, ⟨⟩⟩ | ⟨_, ⟨⟩⟩) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩ }
-        fun _ => rfl)
+            rcases x with (⟨_, ⟨⟩⟩ | ⟨_, ⟨⟩⟩) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩ })
 
 /-- Every pair of interaction combinators has a rule. -/
 theorem isSome_rule (α β : sig.Sym) : (system.rule α β).isSome := by
@@ -269,9 +268,9 @@ theorem epsGamma_reducesIn : system.ReducesIn 3 epsGamma (emptyCtx.plug epsEps) 
   .succ (InteractionSystem.step_plug (I := system) (α := Sym.ε) (β := Sym.γ) (R := erase.swap)
       rfl epsCtx) <|
     .succ ((InteractionSystem.step_plug (I := system) (α := Sym.ε) (β := Sym.ε) (R := epsEps) rfl
-      epsPairCtx).of_equiv (erasedIso.symm.equiv nofun) (Setoid.refl _)) <|
+      epsPairCtx).of_equiv erasedIso.symm.equiv (Setoid.refl _)) <|
     .succ ((InteractionSystem.step_plug (I := system) (α := Sym.ε) (β := Sym.ε) (R := epsEps) rfl
-      emptyCtx).of_equiv (oneErasedIso.symm.equiv nofun) (Setoid.refl _)) <|
+      emptyCtx).of_equiv oneErasedIso.symm.equiv (Setoid.refl _)) <|
     .zero (Setoid.refl _)
 
 /-- Every reduction of `epsGamma` to normal form takes three steps and ends in the empty net. -/

@@ -8,6 +8,7 @@ in Lean 4 with Mathlib.
 - `LeanInets/Signature.lean` – signatures (symbols with arities)
 - `LeanInets/Port.lean` – ports: free ports, principal/auxiliary agent ports, wire ends
 - `LeanInets/Net.lean` – nets and active pairs
+- `LeanInets/Renaming.lean` – label-preserving bijections of agents and interfaces, shared by both kinds of isomorphism
 - `LeanInets/Iso.lean` – isomorphism of nets (with a bijection of interfaces) and reindexing
 - `LeanInets/Union.lean` – disjoint union of nets, commutative and associative up to isomorphism
 - `LeanInets/Trace.lean` – the trace (connecting pairs of free ports): superposing and vanishing
