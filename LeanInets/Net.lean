@@ -49,13 +49,6 @@ theorem link_involutive : Function.Involutive N.link := N.link_link
 
 theorem link_injective : Function.Injective N.link := N.link_involutive.injective
 
-theorem link_bijective : Function.Bijective N.link := N.link_involutive.bijective
-
-/-- The linking of ports as a permutation. -/
-def linkPerm : Equiv.Perm N.Port := N.link_involutive.toPerm
-
-@[simp] theorem linkPerm_apply (p : N.Port) : N.linkPerm p = N.link p := rfl
-
 theorem link_eq_comm {p q : N.Port} : N.link p = q ↔ N.link q = p := by
   constructor <;> rintro rfl <;> exact N.link_link _
 
@@ -77,25 +70,19 @@ theorem IsActivePair.ne {a b : N.Agent} (h : N.IsActivePair a b) : a ≠ b := by
   rintro rfl
   exact N.link_ne _ h
 
-/-- An agent is part of at most one active pair. -/
-theorem IsActivePair.unique {a b c : N.Agent} (hb : N.IsActivePair a b)
-    (hc : N.IsActivePair a c) : b = c :=
-  Port.pri.inj (Eq.trans (Eq.symm hb) hc)
-
-/-- Two active pairs that share an agent are the same pair (possibly swapped).
-This is the reason interaction nets are strongly confluent. -/
-theorem IsActivePair.eq_or_eq_of_mem {a b c d : N.Agent} (hab : N.IsActivePair a b)
-    (hcd : N.IsActivePair c d) (h : a = c ∨ a = d ∨ b = c ∨ b = d) :
-    (a = c ∧ b = d) ∨ (a = d ∧ b = c) := by
-  rcases h with rfl | rfl | rfl | rfl
-  · exact .inl ⟨rfl, hab.unique hcd⟩
-  · exact .inr ⟨rfl, hab.unique hcd.symm⟩
-  · exact .inr ⟨hab.symm.unique hcd, rfl⟩
-  · exact .inl ⟨hab.symm.unique hcd.symm, rfl⟩
-
 variable (N)
 
 /-- A net is in normal form if it has no active pairs. -/
 def IsNormal : Prop := ∀ a b, ¬ N.IsActivePair a b
 
 end Net
+
+/-- The empty net, on an empty interface. -/
+def Net.empty (S : Signature) (ι : Type) [IsEmpty ι] : Net S ι where
+  Agent := Empty
+  Wire := Empty
+  label := Empty.elim
+  link p := p
+  link_link _ := rfl
+  link_ne p := by rcases p with i | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩; exact isEmptyElim i
+  link_free i := isEmptyElim i

@@ -58,8 +58,8 @@ theorem Step.plug {κ : Type} {R R' : Net S κ} (h : I.Step R R') (C : Net S (ι
     I.Step (C.plug R) (C.plug R') := by
   obtain ⟨α, β, Q, C', hQ, hR, hR'⟩ := h
   exact ⟨α, β, Q, C.glue C', hQ,
-    Setoid.trans (plug_equiv (Setoid.refl C) hR) (plugPlug C C' _).equiv,
-    Setoid.trans (plug_equiv (Setoid.refl C) hR') (plugPlug C C' _).equiv⟩
+    Setoid.trans (plug_equiv (Setoid.refl C) hR) ((plugPlug C C' _).equiv (plugPlug_iface C C' _)),
+    Setoid.trans (plug_equiv (Setoid.refl C) hR') ((plugPlug C C' _).equiv (plugPlug_iface C C' _))⟩
 
 /-! ### Reduction respects `≈` -/
 
@@ -123,7 +123,7 @@ theorem normal_congr {N M : Net S ι} (h : N ≈ M) : I.Normal N ↔ I.Normal M 
 /-- A net that reduces has an active pair up to wires whose symbols have a rule. -/
 theorem Step.exists_isActivePairW {N N' : Net S ι} (h : I.Step N N') :
     ∃ a b, N.IsActivePairW a b ∧ (I.rule (N.label a) (N.label b)).isSome := by
-  obtain ⟨α, β, R, C, hR, ⟨e⟩, -⟩ := h
+  obtain ⟨α, β, R, C, hR, ⟨e, -⟩, -⟩ := h
   refine ⟨e.symm.agent (.inr .left), e.symm.agent (.inr .right),
     e.symm.isActivePairW_iff.mpr (isActivePair_plug_activePair C).isActivePairW, ?_⟩
   rw [e.symm.label_agent, e.symm.label_agent]

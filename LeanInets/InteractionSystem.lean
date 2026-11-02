@@ -78,10 +78,11 @@ ports are linked. Its interface consists of the auxiliary ports of `α`, followe
 theorem activePair_isActivePair (α β : S.Sym) :
     (activePair α β).IsActivePair .left .right := rfl
 
-/-- `α ⋈ β` with its interface swapped is `β ⋈ α`. -/
-def activePairSwap (α β : S.Sym) : Iso (activePair α β).swap (activePair β α) where
+/-- `α ⋈ β` and `β ⋈ α` are isomorphic, by swapping the two halves of the interface. -/
+def activePairSwap (α β : S.Sym) : Iso (activePair α β) (activePair β α) where
   agent := ActivePair.Agent.swap
   wire := .refl _
+  iface := Equiv.sumComm _ _
   label_agent a := by cases a <;> rfl
   link_map p := by rcases p with (_ | _) | (_ | _) | ⟨_ | _, _⟩ | ⟨⟨⟩, _⟩ <;> rfl
 

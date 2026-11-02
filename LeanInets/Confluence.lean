@@ -44,8 +44,8 @@ theorem exists_activePair_of_wireIso {N : Net S ι} {α β : S.Sym}
 /-- Reduction is strongly confluent modulo `≈`. -/
 theorem Step.strong_confluence {N N₁ N₂ : Net S ι} (h₁ : I.Step N N₁) (h₂ : I.Step N N₂) :
     N₁ ≈ N₂ ∨ ∃ N₃, I.Step N₁ N₃ ∧ I.Step N₂ N₃ := by
-  obtain ⟨α₁, β₁, R₁, C₁, hR₁, ⟨e₁⟩, hN₁⟩ := h₁
-  obtain ⟨α₂, β₂, R₂, C₂, hR₂, ⟨e₂⟩, hN₂⟩ := h₂
+  obtain ⟨α₁, β₁, R₁, C₁, hR₁, ⟨e₁, he₁⟩, hN₁⟩ := h₁
+  obtain ⟨α₂, β₂, R₂, C₂, hR₂, ⟨e₂, he₂⟩, hN₂⟩ := h₂
   obtain ⟨a₁, b₁, ea₁, eb₁, p₁, la₁, lb₁⟩ := exists_activePair_of_wireIso e₁
   obtain ⟨a₂, b₂, ea₂, eb₂, p₂, la₂, lb₂⟩ := exists_activePair_of_wireIso e₂
   have hsymm₁ (t) : e₁.agent.symm (.inr t) = match t with | .left => a₁ | .right => b₁ := by
@@ -75,8 +75,8 @@ theorem Step.strong_confluence {N N₁ N₂ : Net S ι} (h₁ : I.Step N N₁) (
     subst la₂ lb₂
     obtain rfl := Option.some.inj (hR₁.symm.trans hR₂)
     refine .inl (Setoid.trans hN₁ (Setoid.trans ?_ (Setoid.symm hN₂)))
-    refine plug_equiv (WireIso.equiv (.ofPlugActivePair (e₁.symm.trans e₂) fun t => ?_))
-      (Setoid.refl _)
+    refine plug_equiv ((WireIso.ofPlugActivePair (e₁.symm.trans e₂)
+      (WireIso.symm_trans_iface e₁ e₂ he₁ he₂) fun t => ?_).equiv fun _ => rfl) (Setoid.refl _)
     change e₂.agent (e₁.agent.symm (.inr t)) = _
     rw [hsymm₁]
     cases t
@@ -86,12 +86,13 @@ theorem Step.strong_confluence {N N₁ N₂ : Net S ι} (h₁ : I.Step N N₁) (
     subst la₂ lb₂
     obtain ⟨M, hM, hMR⟩ := I.exists_rule_swap hR₁
     obtain rfl := Option.some.inj (hR₂.symm.trans hM)
-    let f := e₁.symm.trans (e₂.trans (((WireIso.refl C₂).plug
-      (activePairSwap _ _).symm.wireIso).trans
-        (plugReindex C₂ (activePair _ _) (Equiv.sumComm _ _)).wireIso))
+    let g : Iso (C₂.plug (activePair _ _))
+        ((C₂.reindex (.sumCongr (.refl ι) (Equiv.sumComm _ _))).plug (activePair _ _)) :=
+      Iso.plug (reindexIso _ C₂) (activePairSwap _ _) (.refl ι) fun _ => rfl
+    let f := e₁.symm.trans (e₂.trans g.wireIso)
     have hf : ∀ t, f.agent (.inr t) = .inr t := fun t => by
-      change (Equiv.refl _) ((Equiv.sumCongr (Equiv.refl _) ActivePair.Agent.swap.symm)
-        (e₂.agent (e₁.agent.symm (.inr t)))) = _
+      change Equiv.sumCongr (Equiv.refl _) ActivePair.Agent.swap
+        (e₂.agent (e₁.agent.symm (.inr t))) = _
       rw [hsymm₁]
       cases t
       · rw [eb₂]
@@ -99,8 +100,11 @@ theorem Step.strong_confluence {N N₁ N₂ : Net S ι} (h₁ : I.Step N N₁) (
       · rw [ea₂]
         rfl
     refine .inl (Setoid.trans hN₁ (Setoid.trans ?_ (Setoid.symm hN₂)))
-    refine Setoid.trans (plug_equiv (WireIso.ofPlugActivePair f hf).equiv (Setoid.refl _)) ?_
-    refine Setoid.trans (plugReindex C₂ R₁ (Equiv.sumComm _ _)).symm.equiv ?_
+    refine Setoid.trans (plug_equiv ((WireIso.ofPlugActivePair f
+      (WireIso.symm_trans_iface e₁ (e₂.trans g.wireIso) he₁ he₂) hf).equiv fun _ => rfl)
+      (Setoid.refl _)) ?_
+    refine Setoid.trans ((Iso.plug (reindexIso _ C₂).symm (reindexIso _ R₁) (.refl ι)
+      (by rintro (_ | _ | _) <;> rfl)).equiv fun _ => rfl) ?_
     exact plug_equiv (Setoid.refl _) (Setoid.symm hMR)
   · -- Disjoint active pairs: cut the second one out of the context of the first, and reduce
     -- them in either order.
@@ -118,11 +122,13 @@ theorem Step.strong_confluence {N N₁ N₂ : Net S ι} (h₁ : I.Step N N₁) (
     subst lc ld
     let g := wireIsoPlugRemovePair pc
     let D := C₁.removePair c d pc.1
-    have hD : D.exchange.exchange ≈ D := (reindexReindex D _ _ sumRightComm_sumRightComm).equiv
-    let f := e₂.symm.trans ((e₁.trans (g.plug (.refl _))).trans (plugExchange D _ _).wireIso)
+    have hD : D.exchange.exchange ≈ D := exchange_exchange D
+    let f := e₂.symm.trans ((e₁.trans (g.plugSelf (.refl _) (fun _ => rfl) fun _ => rfl)).trans
+      (plugExchange D (activePair (C₁.label c) (C₁.label d)) (activePair α₁ β₁)).wireIso)
     have hf : ∀ t, f.agent (.inr t) = .inr t := fun t => by
-      change sumRightComm _ _ _
+      change (plugExchange D _ _).agent
         (Equiv.sumCongr g.agent (Equiv.refl _) (e₁.agent (e₂.agent.symm (.inr t)))) = _
+      rw [plugExchange_agent]
       cases t
       · rw [e₂.agent.symm_apply_eq.mpr ea₂.symm, hc]
         change sumRightComm _ _ _ (.inl (RemovePair.classify c)) = _
@@ -132,16 +138,18 @@ theorem Step.strong_confluence {N N₁ N₂ : Net S ι} (h₁ : I.Step N N₁) (
         change sumRightComm _ _ _ (.inl (RemovePair.classify d)) = _
         rw [RemovePair.classify_b pc.1]
         rfl
-    have hC₂ := (WireIso.ofPlugActivePair f hf).equiv
+    have hC₂ := (WireIso.ofPlugActivePair f (WireIso.symm_trans_iface e₂ _ he₂ fun i =>
+      (plugExchange_iface D (activePair (C₁.label c) (C₁.label d)) (activePair α₁ β₁)
+        (e₁.iface i)).trans (he₁ i)) hf).equiv fun _ => rfl
     refine .inr ⟨(D.plug R₂).plug R₁, ?_, ?_⟩
     · refine Step.of_equiv (step_plug hR₂ (D.exchange.plug R₁)) (Setoid.symm ?_) ?_
-      · exact Setoid.trans hN₁ (Setoid.trans (plug_equiv g.equiv (Setoid.refl _))
-          (plugExchange D _ _).equiv)
-      · exact Setoid.trans (plugExchange D.exchange _ _).equiv
+      · exact Setoid.trans hN₁ (Setoid.trans (plug_equiv (g.equiv fun _ => rfl) (Setoid.refl _))
+          (plug_plug_equiv_exchange D _ _))
+      · exact Setoid.trans (plug_plug_equiv_exchange D.exchange _ _)
           (plug_equiv (plug_equiv hD (Setoid.refl _)) (Setoid.refl _))
     · refine Step.of_equiv (step_plug hR₁ (D.plug R₂)) (Setoid.symm ?_) (Setoid.refl _)
       exact Setoid.trans hN₂ (Setoid.trans (plug_equiv hC₂ (Setoid.refl _))
-        (Setoid.trans (plugExchange D.exchange _ _).equiv
+        (Setoid.trans (plug_plug_equiv_exchange D.exchange _ _)
           (plug_equiv (plug_equiv hD (Setoid.refl _)) (Setoid.refl _))))
 
 /-! ### Church–Rosser -/
