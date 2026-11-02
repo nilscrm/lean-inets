@@ -55,15 +55,18 @@ def wires {κ : Type} [Fintype κ] (σ : κ ≃ κ) : Net sig (κ ⊕ κ) :=
 variable {κ : Type} [Fintype κ] (σ : κ ≃ κ)
 
 theorem wires_partner (k : κ) : (wires σ).Partner (.free (.inl k)) (.free (.inr (σ k))) :=
-  partner_reindex _ _ (idNet_partner_inl k)
+  (reindexIso _ (idNet sig κ)).wireIso.partner_map (idNet_partner k)
 
 theorem wires_swap_partner (k : κ) :
     (wires σ).swap.Partner (.free (.inr k)) (.free (.inl (σ k))) :=
-  partner_reindex _ _ (wires_partner σ k)
+  (reindexIso _ (wires σ)).wireIso.partner_map (wires_partner σ k)
 
 /-- Swapping the interface of a net of wires inverts the permutation, up to wires. -/
-def wiresSwap : WireIso (wires σ).swap (wires σ.symm) :=
-  .ofPartner (.refl Empty) (fun a => a.elim) fun x y h => by
+def wiresSwap : WireIso (wires σ).swap (wires σ.symm) where
+  agent := .refl Empty
+  iface := .refl _
+  label_agent a := a.elim
+  partner_map {x y} h := by
     rcases x with (k | k) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩
     · have := wires_swap_partner σ (σ.symm k)
       rw [Equiv.apply_symm_apply] at this
@@ -82,14 +85,7 @@ def gammaGamma : Net sig (Fin 2 ⊕ Fin 2) := wires (Equiv.swap 0 1)
 def deltaDelta : Net sig (Fin 2 ⊕ Fin 2) := wires (.refl _)
 
 /-- The rule for `ε ⋈ ε`: the empty net. -/
-def epsEps : Net sig (Fin 0 ⊕ Fin 0) where
-  Agent := Empty
-  Wire := Empty
-  label := Empty.elim
-  link p := p
-  link_link _ := rfl
-  link_ne p := by rcases p with (⟨_, ⟨⟩⟩ | ⟨_, ⟨⟩⟩) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩
-  link_free i := by rcases i with ⟨_, ⟨⟩⟩ | ⟨_, ⟨⟩⟩
+def epsEps : Net sig (Fin 0 ⊕ Fin 0) := Net.empty _ _
 
 namespace Commute
 
@@ -169,14 +165,19 @@ def system : InteractionSystem sig where
     cases α <;> cases β
     all_goals try first
       | exact .some (Setoid.refl _)
-      | exact .some (Net.swapSwap _).symm.equiv
+      | exact .some (Setoid.symm (Net.swap_swap_equiv _))
     · refine .some ?_
-      have := (wiresSwap (Equiv.swap (0 : Fin 2) 1)).equiv
+      have := (wiresSwap (Equiv.swap (0 : Fin 2) 1)).equiv fun _ => rfl
       rw [Equiv.symm_swap] at this
       exact Setoid.symm this
-    · exact .some (Setoid.symm (wiresSwap (.refl _)).equiv)
-    · exact .some (WireIso.equiv (.ofPartner (.refl _) nofun
-        (by rintro ((⟨_, ⟨⟩⟩ | ⟨_, ⟨⟩⟩) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩))))
+    · exact .some (Setoid.symm ((wiresSwap (.refl _)).equiv fun _ => rfl))
+    · exact .some (WireIso.equiv
+        { agent := .refl _
+          iface := .refl _
+          label_agent := nofun
+          partner_map := fun {x} => by
+            rcases x with (⟨_, ⟨⟩⟩ | ⟨_, ⟨⟩⟩) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩ }
+        fun _ => rfl)
 
 /-- Every pair of interaction combinators has a rule. -/
 theorem isSome_rule (α β : sig.Sym) : (system.rule α β).isSome := by
@@ -221,14 +222,7 @@ def epsPairCtx : Net sig (Empty ⊕ (Fin 0 ⊕ Fin 0)) :=
   (activePair (S := sig) .ε .ε).reindex (Equiv.emptySum Empty _).symm
 
 /-- The empty context. -/
-def emptyCtx : Net sig (Empty ⊕ (Fin 0 ⊕ Fin 0)) where
-  Agent := Empty
-  Wire := Empty
-  label := Empty.elim
-  link p := p
-  link_link _ := rfl
-  link_ne := by decide
-  link_free := by decide
+def emptyCtx : Net sig (Empty ⊕ (Fin 0 ⊕ Fin 0)) := Net.empty _ _
 
 /-- The agents after erasing the `γ`: the two `ε`s of the context face the two new `ε`s. -/
 def erasedAgent : Fin 2 ⊕ Fin 2 ≃ ActivePair.Agent ⊕ ActivePair.Agent where
@@ -249,6 +243,7 @@ def erasedAgent : Fin 2 ⊕ Fin 2 ≃ ActivePair.Agent ⊕ ActivePair.Agent wher
 def erasedIso : Iso (epsCtx.plug erase.swap) (epsPairCtx.plug (activePair (S := sig) .ε .ε)) where
   agent := erasedAgent
   wire := .refl _
+  iface := .refl _
   label_agent := by rintro (⟨_ | _ | _, _⟩ | ⟨_ | _ | _, _⟩) <;> rfl
   link_map := by
     rintro (⟨⟨⟩⟩ | (⟨_ | _ | _, _⟩ | ⟨_ | _ | _, _⟩) | ⟨a | a, k⟩ | ⟨⟨⟩ | ⟨⟩, _⟩)
@@ -259,6 +254,7 @@ def oneErasedIso :
     Iso (epsPairCtx.plug epsEps) (emptyCtx.plug (activePair (S := sig) .ε .ε)) where
   agent := Equiv.sumComm _ _
   wire := .refl _
+  iface := .refl _
   label_agent := by rintro ((_ | _) | ⟨⟩) <;> rfl
   link_map := by
     rintro (⟨⟨⟩⟩ | ((_ | _) | ⟨⟩) | ⟨(_ | _) | ⟨⟩, k⟩ | ⟨⟨⟩ | ⟨⟩, _⟩)
@@ -273,9 +269,9 @@ theorem epsGamma_reducesIn : system.ReducesIn 3 epsGamma (emptyCtx.plug epsEps) 
   .succ (InteractionSystem.step_plug (I := system) (α := Sym.ε) (β := Sym.γ) (R := erase.swap)
       rfl epsCtx) <|
     .succ ((InteractionSystem.step_plug (I := system) (α := Sym.ε) (β := Sym.ε) (R := epsEps) rfl
-      epsPairCtx).of_equiv erasedIso.symm.equiv (Setoid.refl _)) <|
+      epsPairCtx).of_equiv (erasedIso.symm.equiv nofun) (Setoid.refl _)) <|
     .succ ((InteractionSystem.step_plug (I := system) (α := Sym.ε) (β := Sym.ε) (R := epsEps) rfl
-      emptyCtx).of_equiv oneErasedIso.symm.equiv (Setoid.refl _)) <|
+      emptyCtx).of_equiv (oneErasedIso.symm.equiv nofun) (Setoid.refl _)) <|
     .zero (Setoid.refl _)
 
 /-- Every reduction of `epsGamma` to normal form takes three steps and ends in the empty net. -/

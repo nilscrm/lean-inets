@@ -3,12 +3,10 @@ module
 public import LeanInets.InteractionSystem
 
 /-!
-# Contexts and active pairs up to wires
+# Active pairs up to wires
 
-A *context* for a net with interface `κ` is a net `C` with interface `ι ⊕ κ`; plugging `R`
-into it (`Net.plug`) glues `R` onto the `κ` half of the interface, giving a net with
-interface `ι`. Reduction replaces an active pair `α ⋈ β` in a context by the right-hand side
-of its rule.
+Reduction replaces an active pair `α ⋈ β` in a context `C` (`C.plug (activePair α β)`) by the
+right-hand side of its rule.
 
 Two agents form an *active pair up to wires* (`Net.IsActivePairW`) if their principal ports
 are connected, possibly through wires. Unlike `Net.IsActivePair`, this is invariant under
@@ -27,24 +25,6 @@ path between them becomes a closed loop of wires, which `≈` ignores.
 namespace Net
 
 variable {S : Signature} {ι : Type}
-
-/-! ### Plugging a net into a context -/
-
-section plug
-
-variable {κ : Type}
-
-/-- Plug the net `R` into the context `C`: glue `R` onto the `κ` half of the interface of
-`C`. -/
-abbrev plug (C : Net S (ι ⊕ κ)) (R : Net S κ) : Net S ι :=
-  (C.glue (R.reindex (Equiv.sumEmpty κ Empty).symm)).reindex (Equiv.sumEmpty ι Empty)
-
-/-- Plugging respects `≈`. -/
-theorem plug_equiv {C C' : Net S (ι ⊕ κ)} {R R' : Net S κ} (hC : C ≈ C') (hR : R ≈ R') :
-    C.plug R ≈ C'.plug R' :=
-  reindex_equiv _ (glue_equiv hC (reindex_equiv _ hR))
-
-end plug
 
 /-! ### Active pairs up to wires -/
 
@@ -319,7 +299,8 @@ namespace RemovePair
 variable {N : Net S ι} {a b : N.Agent} (hab : a ≠ b)
 
 /-- The net `N` with the active pair `a`, `b` cut out and plugged back in. -/
-noncomputable abbrev plugged : Net S ι := (N.removePair a b hab).plug (activePair (N.label a) (N.label b))
+noncomputable abbrev plugged : Net S ι :=
+  (N.removePair a b hab).plug (activePair (N.label a) (N.label b))
 
 theorem label_agentEquiv (c : N.Agent) :
     (plugged hab).label (agentEquiv hab c) = N.label c :=
@@ -330,28 +311,20 @@ noncomputable abbrev tportMap (x : N.TPort) : (plugged hab).TPort :=
   x.map (agentEquiv hab) (label_agentEquiv hab) id id
 
 /-- A port of `N` as a port of the context, inside the plugged net. -/
-noncomputable def toPlug (p : N.Port) : (plugged hab).Port :=
-  ((N.removePair a b hab).glue
-      ((activePair (N.label a) (N.label b)).reindex (Equiv.sumEmpty _ Empty).symm)).reindexPort
-    (Equiv.sumEmpty ι Empty) (Glue.inl _ _ (port p))
+noncomputable def toPlug (p : N.Port) : (plugged hab).Port := Plug.inl _ _ (port p)
 
 theorem link_toPlug (p : N.Port) : (plugged hab).link (toPlug hab p) = toPlug hab (N.link p) := by
   unfold toPlug
-  rw [reindex_link, glue_link_inl]
+  rw [Plug.link_inl]
   rw [show (N.removePair a b hab).link (port p) = port (N.link p) from link_port p]
 
-theorem step_toPlug {p q : N.Port} (h : N.Step p q) :
-    (plugged hab).Step (toPlug hab p) (toPlug hab q) := by
-  obtain ⟨w, s, rfl, rfl⟩ := h.eq
-  rw [← link_toPlug]
-  exact step_wire (N := plugged hab) (.inl (.inl w)) s
+theorem reach_toPlug_of_reach {p q : N.Port} (h : Relation.ReflTransGen N.Step p q) :
+    Relation.ReflTransGen (plugged hab).Step (toPlug hab p) (toPlug hab q) :=
+  reach_map (toPlug hab) (fun w => .inl (.inl w)) (link_toPlug hab) (fun _ _ => rfl) h
 
 theorem reach_auxPort (z : RemovePair.Agent N a b ⊕ ActivePair.Agent)
     (k : Fin (S.arity (plugLabel N a b z))) :
-    Relation.ReflTransGen (plugged hab).Step
-      (((N.removePair a b hab).glue
-        ((activePair (N.label a) (N.label b)).reindex (Equiv.sumEmpty _ Empty).symm)).reindexPort
-          (Equiv.sumEmpty ι Empty) (Glue.inl _ _ (auxPort z k)))
+    Relation.ReflTransGen (plugged hab).Step (Plug.inl _ _ (auxPort z k))
       ((plugged hab).tport (.aux z k)) := by
   rcases z with c | _ | _
   · exact .refl
@@ -377,8 +350,11 @@ end RemovePair
 open RemovePair in
 /-- Cutting out an active pair and plugging it back in gives the same net, up to wires. -/
 noncomputable def wireIsoPlugRemovePair {N : Net S ι} {a b : N.Agent} (h : N.IsActivePairW a b) :
-    WireIso N ((N.removePair a b h.1).plug (activePair (N.label a) (N.label b))) :=
-  .ofPartner (agentEquiv h.1) (label_agentEquiv h.1) fun x y hxy => by
+    WireIso N ((N.removePair a b h.1).plug (activePair (N.label a) (N.label b))) where
+  agent := agentEquiv h.1
+  iface := .refl ι
+  label_agent := label_agentEquiv h.1
+  partner_map {x y} hxy := by
     change (plugged h.1).Partner (tportMap h.1 x) (tportMap h.1 y)
     by_cases hxa : x = .pri a
     · subst hxa
@@ -400,13 +376,12 @@ noncomputable def wireIsoPlugRemovePair {N : Net S ι} {a b : N.Agent} (h : N.Is
       exact hxa (hxy.symm.unique h.2.symm)
     have h1 := reflTransGen_step_reverse (reach_toPlug h.1 x hxa hxb)
     rw [link_toPlug] at h1
-    exact h1.trans ((reflTransGen_map _ (fun _ _ => step_toPlug h.1) hxy).trans
-      (reach_toPlug h.1 y hya hyb))
+    exact h1.trans ((reach_toPlug_of_reach h.1 hxy).trans (reach_toPlug h.1 y hya hyb))
 
 /-- Every active pair up to wires can be cut out of its net: `N` is, up to wires, the active
 pair plugged into the context `N.removePair a b`. -/
 theorem equiv_plug_removePair {N : Net S ι} {a b : N.Agent} (h : N.IsActivePairW a b) :
     N ≈ (N.removePair a b h.1).plug (activePair (N.label a) (N.label b)) :=
-  (wireIsoPlugRemovePair h).equiv
+  (wireIsoPlugRemovePair h).equiv fun _ => rfl
 
 end Net

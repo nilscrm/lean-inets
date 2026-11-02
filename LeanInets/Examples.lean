@@ -44,21 +44,20 @@ def identFlip (S : Signature) : Net S Side where
   link_ne p := by rcases p with _ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | _ <;> nofun
   link_free _ := trivial
 
-/-- Isomorphisms cannot flip wires, so the two orientations of the identity net are not
-isomorphic. -/
-example (S : Signature) : ¬ (ident S).Isomorphic (identFlip S) := by
-  rintro ⟨e⟩
-  have : Port.wire () .r = .wire (e.wire ()) .l := e.link_port (.free .l)
-  cases this
+/-- Isomorphisms cannot flip wires, so an isomorphism between the two orientations of the
+identity net has to exchange the two free ports. -/
+example (S : Signature) (e : Net.Iso (ident S) (identFlip S)) : e.iface .l = .r := by
+  have h := e.link_port (.free .l)
+  rw [Net.Iso.port_free] at h
+  generalize e.iface .l = s at h
+  cases s
+  · cases h
+  · rfl
 
 /-! ### Isomorphism up to wires
 
-`ident` and `identFlip` are not isomorphic, but they have the same connections: in both, the
-free port `l` is connected to `r`. -/
-
-/-- In `ident`, the free ports and both ends of the wire form a single path. -/
-example (S : Signature) : (ident S).Connected (.free .l) (.wire () .r) :=
-  (Net.connected_link (N := ident S) _).trans (Net.connected_flipEnd (N := ident S) _)
+`ident` and `identFlip` are not isomorphic by an isomorphism that is the identity on the
+interface, but they have the same partners: in both, the free port `l` is the partner of `r`. -/
 
 theorem ident_partner (S : Signature) : (ident S).Partner (.free .l) (.free .r) :=
   .single (Net.step_wire (N := ident S) () .l)
@@ -67,16 +66,18 @@ theorem identFlip_partner (S : Signature) : (identFlip S).Partner (.free .l) (.f
   .single (Net.step_wire (N := identFlip S) () .r)
 
 /-- The two orientations of the identity net are isomorphic up to wires. -/
-def identWireIso (S : Signature) : Net.WireIso (ident S) (identFlip S) :=
-  .ofPartner (.refl _)
-    (fun a => a.elim) fun x y h => by
-      rcases x with (_ | _) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩
-      · obtain rfl := h.unique (ident_partner S)
-        exact identFlip_partner S
-      · obtain rfl := h.unique (ident_partner S).symm
-        exact (identFlip_partner S).symm
+def identWireIso (S : Signature) : Net.WireIso (ident S) (identFlip S) where
+  agent := .refl _
+  iface := .refl _
+  label_agent a := a.elim
+  partner_map {x y} h := by
+    rcases x with (_ | _) | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩
+    · obtain rfl := h.unique (ident_partner S)
+      exact identFlip_partner S
+    · obtain rfl := h.unique (ident_partner S).symm
+      exact (identFlip_partner S).symm
 
-example (S : Signature) : ident S ≈ identFlip S := (identWireIso S).equiv
+example (S : Signature) : ident S ≈ identFlip S := (identWireIso S).equiv fun _ => rfl
 
 /-- A vicious circle: a wire whose two ends are linked to each other. -/
 def loop (S : Signature) : Net S Empty where
@@ -92,20 +93,14 @@ def loop (S : Signature) : Net S Empty where
   link_ne p := by rcases p with ⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _ | _⟩ <;> nofun
   link_free i := i.elim
 
-/-- The empty net. -/
-def empty (S : Signature) : Net S Empty where
-  Agent := Empty
-  Wire := Empty
-  label := Empty.elim
-  link p := p
-  link_link _ := rfl
-  link_ne p := by rcases p with ⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩
-  link_free i := i.elim
-
 /-- Vicious circles of wires vanish up to `≈`. -/
-example (S : Signature) : loop S ≈ empty S :=
+example (S : Signature) : loop S ≈ Net.empty S Empty :=
   Net.WireIso.equiv
-    (.ofPartner (.refl _) nofun (by rintro (⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩)))
+    { agent := .refl _
+      iface := .refl _
+      label_agent := nofun
+      partner_map := fun {x} => by rcases x with ⟨⟨⟩⟩ | ⟨⟨⟩⟩ | ⟨⟨⟩, _⟩ | ⟨⟨⟩, _⟩ }
+    nofun
 
 /-! ### Unary arithmetic
 
@@ -310,14 +305,7 @@ def addSucc : Net arith (Fin 2 ⊕ Fin 1) where
   link_free := by decide
 
 /-- The rule for `ε ⋈ Z`: the empty net. -/
-def eraseZero : Net arith (Fin 0 ⊕ Fin 0) where
-  Agent := Empty
-  Wire := Empty
-  label := Empty.elim
-  link p := p
-  link_link _ := rfl
-  link_ne := by decide
-  link_free := by decide
+def eraseZero : Net arith (Fin 0 ⊕ Fin 0) := Net.empty _ _
 
 /-- The rule for `ε ⋈ S`: an eraser on the predecessor. -/
 def eraseSucc : Net arith (Fin 0 ⊕ Fin 1) where
@@ -512,7 +500,7 @@ def arithSystem : InteractionSystem arith where
     all_goals first
       | exact .none
       | exact .some (Setoid.refl _)
-      | exact .some (Net.swapSwap _).symm.equiv
+      | exact .some (Setoid.symm (Net.swap_swap_equiv _))
 
 /-- There is no rule for `S ⋈ Z`: their active pair is a deadlock. -/
 example : arithSystem.rule .succ .zero = none := rfl

@@ -4,7 +4,9 @@ public import LeanInets.Signature
 public import LeanInets.Port
 public import LeanInets.Net
 public import LeanInets.Iso
-public import LeanInets.Glue
+public import LeanInets.Union
+public import LeanInets.Trace
+public import LeanInets.Plug
 public import LeanInets.Connect
 public import LeanInets.WireIso
 public import LeanInets.Unit
