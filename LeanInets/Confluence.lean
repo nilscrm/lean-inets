@@ -13,7 +13,7 @@ or two disjoint active pairs, which can be reduced in either order.
 
 Consequences:
 * Church–Rosser (`InteractionSystem.Reduces.church_rosser`): two reducts of a net reduce to a
-  common net.
+  common net. The proof joins a single step with a reduction first (`Step.strip`).
 * Uniqueness of normal forms (`InteractionSystem.Reduces.normal_unique`).
 * All reductions of a net to normal form have the same length
   (`InteractionSystem.ReducesIn.length_eq`), and if a net has a normal form reached in `n` steps,
@@ -152,55 +152,45 @@ theorem Step.strong_confluence {N N₁ N₂ : Net S ι} (h₁ : I.Step N N₁) (
 
 /-! ### Church–Rosser -/
 
-variable (I) in
-/-- Reduction steps between nets up to `≈`. -/
-def QStep : Quotient (Net.setoid S ι) → Quotient (Net.setoid S ι) → Prop :=
-  Quotient.lift₂ I.Step fun _ _ _ _ h h' => propext (step_congr h h')
-
-theorem qStep_mk {N N' : Net S ι} : I.QStep ⟦N⟧ ⟦N'⟧ ↔ I.Step N N' := Iff.rfl
-
-/-- Multi-step reduction is reflexive transitive closure of reduction steps up to `≈`. -/
-theorem reduces_iff_reflTransGen_qStep {N N' : Net S ι} :
-    I.Reduces N N' ↔ Relation.ReflTransGen I.QStep ⟦N⟧ ⟦N'⟧ := by
-  constructor
-  · rintro ⟨M, hM, hMN'⟩
-    rw [← Quotient.sound hMN']
-    exact Relation.ReflTransGen.lift _ (fun _ _ h => qStep_mk.mpr h) _ _ hM
-  · intro h
-    obtain ⟨q, hq⟩ : ∃ q, q = (⟦N'⟧ : Quotient (Net.setoid S ι)) := ⟨_, rfl⟩
-    rw [← hq] at h
-    induction h generalizing N' with
-    | refl => exact .of_equiv (Quotient.exact hq)
-    | tail _ hstep ih =>
-      rename_i b _ _
-      induction b using Quotient.inductionOn with | h B =>
-      rw [hq] at hstep
-      exact (ih rfl).tail (qStep_mk.mp hstep)
-
-theorem qStep_strong_confluence {x y z : Quotient (Net.setoid S ι)} (hy : I.QStep x y)
-    (hz : I.QStep x z) : ∃ w, Relation.ReflGen I.QStep y w ∧ Relation.ReflTransGen I.QStep z w := by
-  induction x using Quotient.inductionOn with | h N =>
-  induction y using Quotient.inductionOn with | h N₁ =>
-  induction z using Quotient.inductionOn with | h N₂ =>
-  rcases Step.strong_confluence (qStep_mk.mp hy) (qStep_mk.mp hz) with h | ⟨N₃, h₁, h₂⟩
-  · exact ⟨⟦N₂⟧, by rw [Quotient.sound h], .refl⟩
-  · exact ⟨⟦N₃⟧, .single (qStep_mk.mpr h₁), .single (qStep_mk.mpr h₂)⟩
+/-- One step and a reduction from the same net can be joined: the step's target reduces to a
+net that the reduction's target reaches in at most one step. -/
+theorem Step.strip {n : ℕ} {N N₁ N₂ : Net S ι} (h₁ : I.Step N N₁) (h₂ : I.ReducesIn n N N₂) :
+    ∃ N₃, I.Reduces N₁ N₃ ∧ (N₂ ≈ N₃ ∨ I.Step N₂ N₃) := by
+  induction h₂ generalizing N₁ with
+  | zero h => exact ⟨N₁, .refl N₁, .inr (h₁.of_equiv h (Setoid.refl _))⟩
+  | succ hA h ih =>
+    rcases h₁.strong_confluence hA with h₁A | ⟨B, h₁B, hAB⟩
+    · exact ⟨_, ⟨_, h.of_equiv (Setoid.symm h₁A)⟩, .inl (Setoid.refl _)⟩
+    · obtain ⟨N₃, hB, h₃⟩ := ih hAB
+      exact ⟨N₃, hB.head h₁B, h₃⟩
 
 /-- Church–Rosser: two reducts of a net reduce to a common net. -/
 theorem Reduces.church_rosser {N N₁ N₂ : Net S ι} (h₁ : I.Reduces N N₁) (h₂ : I.Reduces N N₂) :
     ∃ N₃, I.Reduces N₁ N₃ ∧ I.Reduces N₂ N₃ := by
-  rw [reduces_iff_reflTransGen_qStep] at h₁ h₂
-  obtain ⟨w, h₁, h₂⟩ := Relation.church_rosser (fun _ _ _ => qStep_strong_confluence) h₁ h₂
-  induction w using Quotient.inductionOn with | h N₃ =>
-  exact ⟨N₃, reduces_iff_reflTransGen_qStep.mpr h₁, reduces_iff_reflTransGen_qStep.mpr h₂⟩
+  obtain ⟨n, h₁⟩ := h₁
+  induction h₁ generalizing N₂ with
+  | zero h => exact ⟨N₂, (reduces_congr h (Setoid.refl _)).mp h₂, .refl N₂⟩
+  | succ hA _ ih =>
+    obtain ⟨m, h₂⟩ := h₂
+    obtain ⟨B, hAB, hB⟩ := hA.strip h₂
+    obtain ⟨N₃, h₁₃, hB₃⟩ := ih hAB
+    refine ⟨N₃, h₁₃, ?_⟩
+    rcases hB with hB | hB
+    · exact (reduces_congr (Setoid.symm hB) (Setoid.refl _)).mp hB₃
+    · exact hB₃.head hB
+
+/-- A net in normal form only reduces in zero steps. -/
+theorem Normal.reducesIn {n : ℕ} {N N' : Net S ι} (hN : I.Normal N) (h : I.ReducesIn n N N') :
+    n = 0 ∧ N ≈ N' := by
+  cases h with
+  | zero h => exact ⟨rfl, h⟩
+  | succ hs _ => exact absurd hs (hN _)
 
 /-- A net in normal form only reduces to itself, up to `≈`. -/
 theorem Normal.equiv_of_reduces {N N' : Net S ι} (hN : I.Normal N) (h : I.Reduces N N') :
-    N ≈ N' := by
-  obtain ⟨M, hM, hMN'⟩ := h
-  rcases hM.cases_head with rfl | ⟨K, hK, -⟩
-  · exact hMN'
-  · exact absurd hK (hN K)
+    N ≈ N' :=
+  let ⟨_, h⟩ := h
+  (hN.reducesIn h).2
 
 /-- Normal forms are unique up to `≈`. -/
 theorem Reduces.normal_unique {N N₁ N₂ : Net S ι} (h₁ : I.Reduces N N₁) (h₂ : I.Reduces N N₂)
@@ -209,43 +199,6 @@ theorem Reduces.normal_unique {N N₁ N₂ : Net S ι} (h₁ : I.Reduces N N₁)
   exact Setoid.trans (hN₁.equiv_of_reduces h₁₃) (Setoid.symm (hN₂.equiv_of_reduces h₂₃))
 
 /-! ### Lengths of reductions -/
-
-variable (I) in
-/-- `N` reduces to `N'` in exactly `n` steps, up to `≈`. -/
-inductive ReducesIn : ℕ → Net S ι → Net S ι → Prop
-  | zero {N N'} : N ≈ N' → ReducesIn 0 N N'
-  | succ {n N M N'} : I.Step N M → ReducesIn n M N' → ReducesIn (n + 1) N N'
-
-theorem ReducesIn.of_equiv {n : ℕ} {N M N' : Net S ι} (h : I.ReducesIn n N N') (hN : N ≈ M) :
-    I.ReducesIn n M N' := by
-  cases h with
-  | zero h => exact .zero (Setoid.trans (Setoid.symm hN) h)
-  | succ hs h => exact .succ (hs.of_equiv hN (Setoid.refl _)) h
-
-theorem ReducesIn.reduces {n : ℕ} {N N' : Net S ι} (h : I.ReducesIn n N N') : I.Reduces N N' := by
-  induction h with
-  | zero h => exact .of_equiv h
-  | succ hs _ ih => exact ih.head hs
-
-theorem Reduces.exists_reducesIn {N N' : Net S ι} (h : I.Reduces N N') :
-    ∃ n, I.ReducesIn n N N' := by
-  obtain ⟨M, hM, hMN'⟩ := h
-  induction hM using Relation.ReflTransGen.head_induction_on with
-  | refl => exact ⟨0, .zero hMN'⟩
-  | head hs _ ih =>
-    obtain ⟨n, h⟩ := ih
-    exact ⟨n + 1, .succ hs h⟩
-
-theorem reduces_iff_exists_reducesIn {N N' : Net S ι} :
-    I.Reduces N N' ↔ ∃ n, I.ReducesIn n N N' :=
-  ⟨Reduces.exists_reducesIn, fun ⟨_, h⟩ => h.reduces⟩
-
-/-- A net in normal form only reduces in zero steps. -/
-theorem Normal.reducesIn {n : ℕ} {N N' : Net S ι} (hN : I.Normal N) (h : I.ReducesIn n N N') :
-    n = 0 ∧ N ≈ N' := by
-  cases h with
-  | zero h => exact ⟨rfl, h⟩
-  | succ hs _ => exact absurd hs (hN _)
 
 /-- If `N` reaches a normal form `N₁` in `n` steps, then every reduction of `N` takes at most `n`
 steps, and can be continued to `N₁` in the remaining steps. -/

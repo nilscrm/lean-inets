@@ -48,14 +48,15 @@
    is an `Option`), symmetry up to `≈` (the rule for `β ⋈ α` is the rule for `α ⋈ β` with its
    interface swapped, stated with `Option.Rel`). Example: the rules for unary addition.
 6. [x] Reduction: `I.Step N N'` iff `N ≈ C.plug (α ⋈ β)` and `N' ≈ C.plug rhs` for a context
-   `C : Net S (ι ⊕ κ)`; multi-step reduction `I.Reduces` (`Relation.ReflTransGen` of `Step`,
-   followed by `≈`, so that zero steps relate equivalent nets); normal forms `I.Normal`.
+   `C : Net S (ι ⊕ κ)`; reduction in exactly `n` steps `I.ReducesIn n` (zero steps relate
+   equivalent nets) and multi-step reduction `I.Reduces` (in some number of steps); normal
+   forms `I.Normal`.
    Redexes are exactly the active pairs up to wires (`IsActivePairW`: principal ports connected
    through wires) whose symbols have a rule (`exists_step_iff`). The hard direction cuts an
    active pair out of its net (`removePair`, `equiv_plug_removePair`).
 7. [x] Metatheory: strong confluence modulo `≈` (`Step.strong_confluence`: the two steps
    reduce the same active pair, the same pair from the other side, or disjoint pairs);
-   Church–Rosser (`Reduces.church_rosser`, via `Relation.church_rosser` on nets up to `≈`),
+   Church–Rosser (`Reduces.church_rosser`, via the strip lemma `Step.strip`),
    uniqueness of normal forms (`Reduces.normal_unique`), equal length of normalising
    reductions (`ReducesIn.length_eq`), and no reduction is longer than a normalising one
    (`ReducesIn.le_of_normal`). The proof rests on contexts being determined by plugging in an
