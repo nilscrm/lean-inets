@@ -9,8 +9,9 @@ A net `N` reduces in one step to `N'` (`I.Step N N'`) if, up to wires, `N` is an
 `α ⋈ β` plugged into a context `C`, and `N'` is the right-hand side of the rule for `α ⋈ β`
 plugged into the same context:
 `N ≈ C.plug (activePair α β)` and `N' ≈ C.plug R` where `I.rule α β = some R`.
-Multi-step reduction (`I.Reduces`) is its reflexive transitive closure, and a net is in normal
-form (`I.Normal`) if it does not reduce.
+`I.ReducesIn n N N'` says that `N` reduces to `N'` in exactly `n` steps, up to `≈`; multi-step
+reduction (`I.Reduces`) is reduction in some number of steps. A net is in normal form
+(`I.Normal`) if it does not reduce.
 
 Since reduction is defined up to `≈`, it does not see wires: an active pair may be connected
 through any number of wires. The redexes of a net are exactly its active pairs up to wires
@@ -33,9 +34,14 @@ def Step (N N' : Net S ι) : Prop :=
     (C : Net S (ι ⊕ (Fin (S.arity α) ⊕ Fin (S.arity β)))),
     I.rule α β = some R ∧ N ≈ C.plug (activePair α β) ∧ N' ≈ C.plug R
 
-/-- Multi-step reduction: the reflexive transitive closure of `Step`, up to `≈`. Without the
-`≈`, a net would not reduce in zero steps to a net that differs from it only in its wires. -/
-def Reduces (N N' : Net S ι) : Prop := ∃ M, Relation.ReflTransGen I.Step N M ∧ M ≈ N'
+/-- `N` reduces to `N'` in exactly `n` steps, up to `≈`. Without the `≈`, a net would not reduce
+in zero steps to a net that differs from it only in its wires. -/
+inductive ReducesIn : ℕ → Net S ι → Net S ι → Prop
+  | zero {N N'} : N ≈ N' → ReducesIn 0 N N'
+  | succ {n N M N'} : I.Step N M → ReducesIn n M N' → ReducesIn (n + 1) N N'
+
+/-- Multi-step reduction: reduction in some number of steps, up to `≈`. -/
+def Reduces (N N' : Net S ι) : Prop := ∃ n, I.ReducesIn n N N'
 
 /-- A net is in normal form if it does not reduce. -/
 def Normal (N : Net S ι) : Prop := ∀ N', ¬ I.Step N N'
@@ -72,26 +78,44 @@ theorem step_congr {N N' M M' : Net S ι} (hN : N ≈ M) (hN' : N' ≈ M') :
     I.Step N N' ↔ I.Step M M' :=
   ⟨fun h => h.of_equiv hN hN', fun h => h.of_equiv (Setoid.symm hN) (Setoid.symm hN')⟩
 
-theorem Step.reduces {N N' : Net S ι} (h : I.Step N N') : I.Reduces N N' :=
-  ⟨N', .single h, Setoid.refl _⟩
+/-! ### Multi-step reduction -/
 
-theorem Reduces.of_equiv {N N' : Net S ι} (h : N ≈ N') : I.Reduces N N' := ⟨N, .refl, h⟩
+theorem ReducesIn.of_equiv {n : ℕ} {N M N' : Net S ι} (h : I.ReducesIn n N N') (hN : N ≈ M) :
+    I.ReducesIn n M N' := by
+  cases h with
+  | zero h => exact .zero (Setoid.trans (Setoid.symm hN) h)
+  | succ hs h => exact .succ (hs.of_equiv hN (Setoid.refl _)) h
+
+theorem ReducesIn.equiv_right {n : ℕ} {N N' M' : Net S ι} (h : I.ReducesIn n N N')
+    (hN' : N' ≈ M') : I.ReducesIn n N M' := by
+  induction h with
+  | zero h => exact .zero (Setoid.trans h hN')
+  | succ hs _ ih => exact .succ hs (ih hN')
+
+theorem ReducesIn.trans {n m : ℕ} {N N' N'' : Net S ι} (h : I.ReducesIn n N N')
+    (h' : I.ReducesIn m N' N'') : I.ReducesIn (n + m) N N'' := by
+  induction h with
+  | zero h => simpa using h'.of_equiv (Setoid.symm h)
+  | succ hs _ ih => simpa [Nat.add_right_comm] using ReducesIn.succ hs (ih h')
+
+theorem ReducesIn.plug {κ : Type} {n : ℕ} {R R' : Net S κ} (h : I.ReducesIn n R R')
+    (C : Net S (ι ⊕ κ)) : I.ReducesIn n (C.plug R) (C.plug R') := by
+  induction h with
+  | zero h => exact .zero (plug_equiv (Setoid.refl C) h)
+  | succ hs _ ih => exact .succ (hs.plug C) ih
+
+theorem Step.reduces {N N' : Net S ι} (h : I.Step N N') : I.Reduces N N' :=
+  ⟨1, .succ h (.zero (Setoid.refl _))⟩
+
+theorem Reduces.of_equiv {N N' : Net S ι} (h : N ≈ N') : I.Reduces N N' := ⟨0, .zero h⟩
 
 theorem Reduces.refl (N : Net S ι) : I.Reduces N N := .of_equiv (Setoid.refl N)
 
-/-- A reduction can start at any net equivalent to its source. -/
-theorem reflTransGen_step_of_equiv {N M N' : Net S ι} (h : Relation.ReflTransGen I.Step N N')
-    (hN : N ≈ M) : I.Reduces M N' := by
-  rcases h.cases_head with rfl | ⟨K, hK, h⟩
-  · exact .of_equiv (Setoid.symm hN)
-  · exact ⟨N', h.head (hK.of_equiv hN (Setoid.refl K)), Setoid.refl _⟩
-
 theorem Reduces.trans {N N' N'' : Net S ι} (h : I.Reduces N N') (h' : I.Reduces N' N'') :
-    I.Reduces N N'' := by
-  obtain ⟨M, hM, hMN'⟩ := h
-  obtain ⟨M', hM', hM'N''⟩ := h'
-  obtain ⟨K, hK, hKM'⟩ := reflTransGen_step_of_equiv hM' (Setoid.symm hMN')
-  exact ⟨K, hM.trans hK, Setoid.trans hKM' hM'N''⟩
+    I.Reduces N N'' :=
+  let ⟨_, h⟩ := h
+  let ⟨_, h'⟩ := h'
+  ⟨_, h.trans h'⟩
 
 theorem Reduces.head {N N' N'' : Net S ι} (h : I.Step N N') (h' : I.Reduces N' N'') :
     I.Reduces N N'' :=
@@ -109,10 +133,9 @@ theorem reduces_congr {N N' M M' : Net S ι} (hN : N ≈ M) (hN' : N' ≈ M') :
   exact ⟨h hN hN', h (Setoid.symm hN) (Setoid.symm hN')⟩
 
 theorem Reduces.plug {κ : Type} {R R' : Net S κ} (h : I.Reduces R R') (C : Net S (ι ⊕ κ)) :
-    I.Reduces (C.plug R) (C.plug R') := by
-  obtain ⟨M, hM, hMR'⟩ := h
-  exact ⟨C.plug M, Relation.ReflTransGen.lift _ (fun _ _ h => h.plug C) _ _ hM,
-    plug_equiv (Setoid.refl C) hMR'⟩
+    I.Reduces (C.plug R) (C.plug R') :=
+  let ⟨n, h⟩ := h
+  ⟨n, h.plug C⟩
 
 theorem normal_congr {N M : Net S ι} (h : N ≈ M) : I.Normal N ↔ I.Normal M :=
   ⟨fun hN M' hM => hN M' (hM.of_equiv (Setoid.symm h) (Setoid.refl _)),
