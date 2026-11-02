@@ -17,7 +17,8 @@
   and gluing nets along a common interface are derived from them.
 - **Isomorphisms** carry a bijection of interfaces, so the structural laws of union and trace
   can be stated without reindexing by hand. Isomorphism stays strict about wires (no wire
-  flipping).
+  flipping). Both kinds of isomorphism extend a `Renaming` (label-preserving bijections of
+  agents and interfaces).
 - Because wires are explicit, `a — w — b` and `a — b` are different nets. The equivalence `≈`
   is *isomorphism up to wires*: label-preserving bijections of agents and interfaces that map
   *partners* to partners, and that are the identity on the interface. The partner of a

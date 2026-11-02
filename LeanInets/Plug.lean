@@ -28,7 +28,7 @@ variable {S : Signature}
 /-- An isomorphism between nets with the same interface that is the identity on the interface
 gives an isomorphism of their traces. -/
 def Iso.traceSelf {ι κ : Type} {N N' : Net S ((ι ⊕ κ) ⊕ κ)} (e : Iso N N')
-    (h : ∀ x, e.iface x = x) : Iso N.trace N'.trace :=
+    (h : ∀ x, e.iface x = x := by iface_rfl) : Iso N.trace N'.trace :=
   e.trace (σ := .refl _) (τ := .refl _) fun x => by rw [h]; rcases x with (_ | _) | _ <;> rfl
 
 /-! ### Plugging -/
@@ -98,7 +98,8 @@ variable {ι' κ' : Type} {C : Net S (ι ⊕ κ)} {C' : Net S (ι' ⊕ κ')} {R 
 /-- Plugging respects isomorphism, if the isomorphism of contexts maps the hole along the
 isomorphism of the plugged nets. -/
 def Iso.plug (e : Iso C C') (f : Iso R R') (σ : ι ≃ ι')
-    (he : ∀ x, e.iface x = Equiv.sumCongr σ f.iface x) : Iso (C.plug R) (C'.plug R') :=
+    (he : ∀ x, e.iface x = Equiv.sumCongr σ f.iface x := by iface_rfl) :
+    Iso (C.plug R) (C'.plug R') :=
   (e.union f).trace (σ := σ) (τ := f.iface) fun x => by
     rcases x with (i | k) | k
     · exact congrArg Sum.inl (he (.inl i))
@@ -144,12 +145,9 @@ variable {ι κ₁ κ₂ : Type} (D : Net S ((ι ⊕ κ₁) ⊕ κ₂)) (X : Net
 /-- Plugging `Y` and then `X` into a context with two holes is plugging their union. -/
 def plugUnion :
     Iso ((D.plug Y).plug X) ((D.reindex (Equiv.sumAssoc ι κ₁ κ₂)).plug (X.union Y)) :=
-  ((traceUnion (D.union Y) X).traceSelf fun _ => rfl).trans <| (traceTrace _).trans <|
+  (traceUnion (D.union Y) X).traceSelf.trans <| (traceTrace _).trans <|
     Iso.traceSelf ((reindexIso _ _).symm.trans <| (reindexIso _ _).symm.trans <|
       (unionAssoc D Y X).trans ((reindexIso _ D).union (unionComm Y X)))
-      (by rintro ((_ | _ | _) | _ | _) <;> rfl)
-
-theorem plugUnion_iface (i : ι) : (plugUnion D X Y).iface i = i := rfl
 
 end plugUnion
 
@@ -165,17 +163,14 @@ def plugPlug : Iso (C.plug (C'.plug X)) ((C.glue C').plug X) :=
   let a : Iso (C.union (C'.plug X)) (((((C'.union X).union C).reindex
       (traceUnionEquiv κ H (ι ⊕ κ))).reindex ρ).trace) :=
     (unionComm C _).trans <| (traceUnion (C'.union X) C).trans <|
-      (reindexIso ρ _).trace (σ := Equiv.sumComm _ _) (τ := .refl _) fun _ => rfl
-  (a.traceSelf (by rintro ((_ | _) | _) <;> rfl)).trans <| (traceTrace _).trans <|
+      (reindexIso ρ _).trace (σ := Equiv.sumComm _ _) (τ := .refl _) (by iface_rfl)
+  a.traceSelf.trans <| (traceTrace _).trans <|
     (Iso.trace (σ := .refl _) (τ := Equiv.sumComm _ _)
       ((reindexIso _ _).symm.trans <| (reindexIso _ _).symm.trans <| (reindexIso _ _).symm.trans <|
         (unionComm _ C).trans <| (unionAssoc C C' X).symm.trans <|
           ((reindexIso _ (C.union C')).union (.refl X)).trans <|
-            (reindexIso _ _).trans (reindexIso _ _))
-      (by rintro ((_ | _ | _) | _ | _) <;> rfl)).trans <|
-    (traceTrace _).symm.trans ((traceUnion _ X).traceSelf fun _ => rfl).symm
-
-theorem plugPlug_iface (i : ι) : (plugPlug C C' X).iface i = i := rfl
+            (reindexIso _ _).trans (reindexIso _ _)) (by iface_rfl)).trans <|
+    (traceTrace _).symm.trans (traceUnion _ X).traceSelf.symm
 
 end plugPlug
 

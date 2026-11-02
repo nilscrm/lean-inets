@@ -27,14 +27,9 @@ namespace Net
 
 variable {S : Signature} {ι ι' ι'' : Type}
 
-/-- An isomorphism up to wires between the nets `N` and `M`: label-preserving bijections of
-agents and interfaces that map partners to partners. -/
-structure WireIso (N : Net S ι) (M : Net S ι') where
-  /-- The bijection on agents. -/
-  agent : N.Agent ≃ M.Agent
-  /-- The bijection on interfaces. -/
-  iface : ι ≃ ι'
-  label_agent : ∀ a, M.label (agent a) = N.label a
+/-- An isomorphism up to wires between the nets `N` and `M`: a renaming that maps partners to
+partners. -/
+structure WireIso (N : Net S ι) (M : Net S ι') extends Renaming N M where
   partner_map : ∀ {x y : N.TPort}, N.Partner x y →
     M.Partner (x.map agent label_agent id iface) (y.map agent label_agent id iface)
 
@@ -43,12 +38,9 @@ namespace WireIso
 variable {N : Net S ι} {M : Net S ι'} {K : Net S ι''}
 
 /-- The bijection on terminal ports induced by an isomorphism up to wires. -/
-def port (e : WireIso N M) : N.TPort ≃ M.TPort :=
-  Port.mapEquiv e.agent e.label_agent (.refl Empty) e.iface
+abbrev port (e : WireIso N M) : N.TPort ≃ M.TPort := e.toRenaming.port (.refl Empty)
 
 variable (e : WireIso N M)
-
-@[simp] theorem port_free (i : ι) : e.port (.free i) = .free (e.iface i) := rfl
 
 theorem partner_port {x y : N.TPort} (h : N.Partner x y) : M.Partner (e.port x) (e.port y) :=
   e.partner_map h
@@ -59,16 +51,15 @@ theorem partner_port_iff {x y : N.TPort} : M.Partner (e.port x) (e.port y) ↔ N
 
 /-- The identity. -/
 @[refl] protected def refl (N : Net S ι) : WireIso N N where
-  agent := .refl _
-  iface := .refl _
-  label_agent _ := rfl
-  partner_map h := by simpa using h
+  toRenaming := .refl N
+  partner_map {x y} h := by
+    change N.Partner ((Renaming.refl N).port (.refl Empty) x)
+      ((Renaming.refl N).port (.refl Empty) y)
+    rwa [Renaming.refl_port, Renaming.refl_port]
 
 /-- The inverse. -/
 @[symm] protected def symm : WireIso M N where
-  agent := e.agent.symm
-  iface := e.iface.symm
-  label_agent a := by rw [← e.label_agent, e.agent.apply_symm_apply]
+  toRenaming := e.toRenaming.symm
   partner_map {x y} h := by
     change N.Partner (e.port.symm x) (e.port.symm y)
     rw [← e.partner_port_iff, Equiv.apply_symm_apply, Equiv.apply_symm_apply]
@@ -76,15 +67,11 @@ theorem partner_port_iff {x y : N.TPort} : M.Partner (e.port x) (e.port y) ↔ N
 
 /-- The composition. -/
 @[trans] protected def trans (e' : WireIso M K) : WireIso N K where
-  agent := e.agent.trans e'.agent
-  iface := e.iface.trans e'.iface
-  label_agent a := (e'.label_agent _).trans (e.label_agent a)
+  toRenaming := e.toRenaming.trans e'.toRenaming
   partner_map {x y} h := by
-    have hp (z : N.TPort) : z.map (e.agent.trans e'.agent)
-        (fun a => (e'.label_agent _).trans (e.label_agent a)) id (e.iface.trans e'.iface) =
-        e'.port (e.port z) := by
-      cases z <;> rfl
-    rw [hp, hp]
+    change K.Partner ((e.toRenaming.trans e'.toRenaming).port ((Equiv.refl _).trans (.refl _)) x)
+      ((e.toRenaming.trans e'.toRenaming).port ((Equiv.refl _).trans (.refl _)) y)
+    rw [Renaming.trans_port, Renaming.trans_port]
     exact e'.partner_port (e.partner_port h)
 
 end WireIso
@@ -101,7 +88,10 @@ instance setoid (S : Signature) (ι : Type) : Setoid (Net S ι) where
 
 theorem equiv_def {N M : Net S ι} : N ≈ M ↔ ∃ e : WireIso N M, ∀ i, e.iface i = i := Iff.rfl
 
-theorem WireIso.equiv {N M : Net S ι} (e : WireIso N M) (h : ∀ i, e.iface i = i) : N ≈ M :=
+/-- An isomorphism up to wires that is the identity on the interface shows that two nets are
+equivalent. The side condition is usually proved automatically. -/
+theorem WireIso.equiv {N M : Net S ι} (e : WireIso N M)
+    (h : ∀ i, e.iface i = i := by iface_rfl) : N ≈ M :=
   ⟨e, h⟩
 
 theorem WireIso.symm_trans_iface {N M K : Net S ι} (e : WireIso N M) (e' : WireIso N K)
@@ -117,25 +107,26 @@ namespace Iso
 variable {N : Net S ι} {M : Net S ι'} (e : Iso N M)
 
 theorem port_tport (x : N.TPort) :
-    e.port (N.tport x) = M.tport (x.map e.agent e.label_agent id e.iface) := by
+    e.port (N.tport x) = M.tport (e.toRenaming.port (.refl Empty) x) := by
   rcases x with _ | _ | _ | ⟨⟨⟩, _⟩ <;> rfl
 
 /-- An isomorphism is an isomorphism up to wires. -/
 def wireIso : WireIso N M where
-  agent := e.agent
-  iface := e.iface
-  label_agent := e.label_agent
+  toRenaming := e.toRenaming
   partner_map h := Partner.map e.port e.wire e.link_port (fun _ _ => rfl) (port_tport e _)
     (port_tport e _) h
 
-theorem equiv {N M : Net S ι} (e : Iso N M) (h : ∀ i, e.iface i = i) : N ≈ M :=
+/-- An isomorphism that is the identity on the interface shows that two nets are equivalent. The
+side condition is usually proved automatically. -/
+theorem equiv {N M : Net S ι} (e : Iso N M) (h : ∀ i, e.iface i = i := by iface_rfl) :
+    N ≈ M :=
   e.wireIso.equiv h
 
 end Iso
 
 /-- Swapping the interface twice gives back an equivalent net. -/
 theorem swap_swap_equiv {α β : Type} (N : Net S (α ⊕ β)) : N.swap.swap ≈ N :=
-  (swapSwap N).equiv (swapSwap_iface N)
+  (swapSwap N).equiv
 
 /-- Reindexing respects equivalence. -/
 theorem reindex_equiv (σ : ι ≃ ι') {N M : Net S ι} (h : N ≈ M) : N.reindex σ ≈ M.reindex σ :=
@@ -198,11 +189,7 @@ variable {κ κ' : Type} {N : Net S ι} {N' : Net S ι'} {M : Net S κ} {M' : Ne
 
 /-- Union respects isomorphism up to wires. -/
 def WireIso.union : WireIso (N.union M) (N'.union M') where
-  agent := e.agent.sumCongr f.agent
-  iface := e.iface.sumCongr f.iface
-  label_agent
-    | .inl a => e.label_agent a
-    | .inr b => f.label_agent b
+  toRenaming := e.toRenaming.union f.toRenaming
   partner_map {x y} h := by
     rcases Union.casesT N M x with ⟨x, rfl⟩ | ⟨x, rfl⟩
     · obtain ⟨z, rfl, hz⟩ := Union.exists_of_partner_inlT h
@@ -323,13 +310,13 @@ variable {κ' : Type} {N} {N' : Net S ((ι' ⊕ κ') ⊕ κ')} (e : WireIso N N'
 include h
 
 theorem WireIso.port_upT (x : N.trace.TPort) :
-    e.port (Trace.upT N x) = Trace.upT N' (x.map e.agent e.label_agent id σ) := by
+    e.port (Trace.upT N x) = Trace.upT N' ((e.toRenaming.trace σ).port (.refl Empty) x) := by
   rcases x with i | _ | _ | ⟨⟨⟩, _⟩
   · exact congrArg Port.free (h _)
   all_goals rfl
 
 theorem Trace.Chain.map {x y} (hc : Chain N x y) :
-    Chain N' (e.port x) (y.map e.agent e.label_agent id σ) := by
+    Chain N' (e.port x) ((e.toRenaming.trace σ).port (.refl Empty) y) := by
   induction hc with
   | stop hp =>
     have := e.partner_port hp
@@ -337,21 +324,19 @@ theorem Trace.Chain.map {x y} (hc : Chain N x y) :
     exact .stop this
   | @jumpL x k y hp _ ih =>
     have := e.partner_port hp
-    rw [WireIso.port_free, h] at this
-    rw [WireIso.port_free, h] at ih
+    rw [Renaming.port_free, h] at this
+    rw [Renaming.port_free, h] at ih
     exact .jumpL this ih
   | @jumpR x k y hp _ ih =>
     have := e.partner_port hp
-    rw [WireIso.port_free, h] at this
-    rw [WireIso.port_free, h] at ih
+    rw [Renaming.port_free, h] at this
+    rw [Renaming.port_free, h] at ih
     exact .jumpR this ih
 
 /-- Trace respects isomorphism up to wires, if the isomorphism maps the traced ports to traced
 ports. -/
 def WireIso.trace : WireIso N.trace N'.trace where
-  agent := e.agent
-  iface := σ
-  label_agent := e.label_agent
+  toRenaming := e.toRenaming.trace σ
   partner_map hp := by
     have := (Trace.partner_iff_chain.mp hp).map e h
     rw [e.port_upT h] at this
@@ -362,7 +347,7 @@ end trace
 /-- An isomorphism up to wires between nets with the same interface that is the identity on the
 interface gives an isomorphism up to wires of their traces. -/
 def WireIso.traceSelf {κ : Type} {N N' : Net S ((ι ⊕ κ) ⊕ κ)} (e : WireIso N N')
-    (h : ∀ x, e.iface x = x) : WireIso N.trace N'.trace :=
+    (h : ∀ x, e.iface x = x := by iface_rfl) : WireIso N.trace N'.trace :=
   e.trace (σ := .refl _) (τ := .refl _) fun x => by rw [h]; rcases x with (_ | _) | _ <;> rfl
 
 /-- Trace respects equivalence. -/
@@ -375,13 +360,15 @@ theorem union_equiv {N N' : Net S ι} {M M' : Net S ι'} (hN : N ≈ N') (hM : M
     N.union M ≈ N'.union M' :=
   let ⟨e, he⟩ := hN
   let ⟨f, hf⟩ := hM
-  ⟨e.union f, by rintro (i | j) <;> simp [WireIso.union, he, hf]⟩
+  ⟨e.union f, by rintro (i | j); exacts [congrArg Sum.inl (he i), congrArg Sum.inr (hf j)]⟩
 
 /-- Plugging respects isomorphism up to wires that is the identity on the interfaces. -/
 def WireIso.plugSelf {κ : Type} {C C' : Net S (ι ⊕ κ)} {R R' : Net S κ} (e : WireIso C C')
-    (f : WireIso R R') (he : ∀ x, e.iface x = x) (hf : ∀ k, f.iface k = k) :
+    (f : WireIso R R') (he : ∀ x, e.iface x = x := by iface_rfl)
+    (hf : ∀ k, f.iface k = k := by iface_rfl) :
     WireIso (C.plug R) (C'.plug R') :=
-  (e.union f).traceSelf (by rintro (i | k) <;> simp [WireIso.union, he, hf])
+  (e.union f).traceSelf
+    (by rintro (i | k); exacts [congrArg Sum.inl (he i), congrArg Sum.inr (hf k)])
 
 /-- Plugging respects equivalence. -/
 theorem plug_equiv {κ : Type} {C C' : Net S (ι ⊕ κ)} {R R' : Net S κ} (hC : C ≈ C')

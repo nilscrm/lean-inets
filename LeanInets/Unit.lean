@@ -71,6 +71,6 @@ def wireIsoIdNetPlug : WireIso R ((idNet S κ).plug R) where
 
 /-- Plugging into the identity context gives back the plugged net, up to wires. -/
 theorem idNet_plug : (idNet S κ).plug R ≈ R :=
-  Setoid.symm ((wireIsoIdNetPlug R).equiv fun _ => rfl)
+  Setoid.symm (wireIsoIdNetPlug R).equiv
 
 end Net

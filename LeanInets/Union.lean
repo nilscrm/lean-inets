@@ -118,29 +118,31 @@ end union
 section congr
 
 variable {ι ι' κ κ' : Type} {N : Net S ι} {N' : Net S ι'} {M : Net S κ} {M' : Net S κ'}
-  (e : Iso N N') (f : Iso M M')
 
-theorem Iso.union_label_agent (a : (N.union M).Agent) :
-    (N'.union M').label (e.agent.sumCongr f.agent a) = (N.union M).label a := by
-  rcases a with a | b
-  exacts [e.label_agent a, f.label_agent b]
+/-- The union of two renamings. -/
+def Renaming.union (e : Renaming N N') (f : Renaming M M') :
+    Renaming (N.union M) (N'.union M') where
+  agent := e.agent.sumCongr f.agent
+  iface := e.iface.sumCongr f.iface
+  label_agent
+    | .inl a => e.label_agent a
+    | .inr b => f.label_agent b
+
+variable (e : Iso N N') (f : Iso M M')
 
 /-- Union respects isomorphism. -/
 def Iso.union : Iso (N.union M) (N'.union M') where
-  agent := e.agent.sumCongr f.agent
+  toRenaming := e.toRenaming.union f.toRenaming
   wire := e.wire.sumCongr f.wire
-  iface := e.iface.sumCongr f.iface
-  label_agent := e.union_label_agent f
   link_map := by
-    have hl (q : N.Port) : Port.map (e.agent.sumCongr f.agent) (e.union_label_agent f)
-        (e.wire.sumCongr f.wire) (e.iface.sumCongr f.iface) (Union.inl N M q) =
-        Union.inl N' M' (e.port q) := by
+    have hl (q : N.Port) : (e.toRenaming.union f.toRenaming).port (e.wire.sumCongr f.wire)
+        (Union.inl N M q) = Union.inl N' M' (e.port q) := by
       cases q <;> rfl
-    have hr (q : M.Port) : Port.map (e.agent.sumCongr f.agent) (e.union_label_agent f)
-        (e.wire.sumCongr f.wire) (e.iface.sumCongr f.iface) (Union.inr N M q) =
-        Union.inr N' M' (f.port q) := by
+    have hr (q : M.Port) : (e.toRenaming.union f.toRenaming).port (e.wire.sumCongr f.wire)
+        (Union.inr N M q) = Union.inr N' M' (f.port q) := by
       cases q <;> rfl
-    exact union_link_ext N M _ (fun q => by rw [hl, hl, union_link_inl, e.link_port])
+    exact union_link_ext N M ((e.toRenaming.union f.toRenaming).port (e.wire.sumCongr f.wire))
+      (fun q => by rw [hl, hl, union_link_inl, e.link_port])
       (fun q => by rw [hr, hr, union_link_inr, f.link_port])
 
 end congr
@@ -151,50 +153,48 @@ section laws
 
 variable {ι ι' ι'' : Type} (N : Net S ι) (M : Net S ι') (K : Net S ι'')
 
-theorem unionComm_label_agent (a : (N.union M).Agent) :
-    (M.union N).label (Equiv.sumComm _ _ a) = (N.union M).label a := by
-  rcases a with _ | _ <;> rfl
+/-- Swapping the two parts of a union. -/
+def Renaming.unionComm : Renaming (N.union M) (M.union N) where
+  agent := Equiv.sumComm _ _
+  iface := Equiv.sumComm _ _
+  label_agent a := by rcases a with _ | _ <;> rfl
 
 /-- Union is commutative up to isomorphism. -/
 def unionComm : Iso (N.union M) (M.union N) where
-  agent := Equiv.sumComm _ _
+  toRenaming := Renaming.unionComm N M
   wire := Equiv.sumComm _ _
-  iface := Equiv.sumComm _ _
-  label_agent := unionComm_label_agent N M
   link_map := by
-    have hl (q : N.Port) : Port.map (Equiv.sumComm _ _) (unionComm_label_agent N M)
-        (Equiv.sumComm _ _) (Equiv.sumComm _ _) (Union.inl N M q) = Union.inr M N q := by
+    have hl (q : N.Port) : (Renaming.unionComm N M).port (Equiv.sumComm _ _) (Union.inl N M q) =
+        Union.inr M N q := by
       cases q <;> rfl
-    have hr (q : M.Port) : Port.map (Equiv.sumComm _ _) (unionComm_label_agent N M)
-        (Equiv.sumComm _ _) (Equiv.sumComm _ _) (Union.inr N M q) = Union.inl M N q := by
+    have hr (q : M.Port) : (Renaming.unionComm N M).port (Equiv.sumComm _ _) (Union.inr N M q) =
+        Union.inl M N q := by
       cases q <;> rfl
-    exact union_link_ext N M _ (fun q => by rw [hl, hl, union_link_inr])
-      (fun q => by rw [hr, hr, union_link_inl])
+    exact union_link_ext N M ((Renaming.unionComm N M).port (Equiv.sumComm _ _))
+      (fun q => by rw [hl, hl, union_link_inr]) (fun q => by rw [hr, hr, union_link_inl])
 
-theorem unionAssoc_label_agent (a : ((N.union M).union K).Agent) :
-    (N.union (M.union K)).label (Equiv.sumAssoc _ _ _ a) = ((N.union M).union K).label a := by
-  rcases a with (_ | _) | _ <;> rfl
+/-- Reassociating a union of three nets. -/
+def Renaming.unionAssoc : Renaming ((N.union M).union K) (N.union (M.union K)) where
+  agent := Equiv.sumAssoc _ _ _
+  iface := Equiv.sumAssoc _ _ _
+  label_agent a := by rcases a with (_ | _) | _ <;> rfl
 
 /-- Union is associative up to isomorphism. -/
 def unionAssoc : Iso ((N.union M).union K) (N.union (M.union K)) where
-  agent := Equiv.sumAssoc _ _ _
+  toRenaming := Renaming.unionAssoc N M K
   wire := Equiv.sumAssoc _ _ _
-  iface := Equiv.sumAssoc _ _ _
-  label_agent := unionAssoc_label_agent N M K
   link_map := by
-    have h₁ (q : N.Port) : Port.map (Equiv.sumAssoc _ _ _) (unionAssoc_label_agent N M K)
-        (Equiv.sumAssoc _ _ _) (Equiv.sumAssoc _ _ _) (Union.inl (N.union M) K (Union.inl N M q)) =
+    let F := (Renaming.unionAssoc N M K).port (Equiv.sumAssoc N.Wire M.Wire K.Wire)
+    have h₁ (q : N.Port) : F (Union.inl (N.union M) K (Union.inl N M q)) =
         Union.inl N (M.union K) q := by
       cases q <;> rfl
-    have h₂ (q : M.Port) : Port.map (Equiv.sumAssoc _ _ _) (unionAssoc_label_agent N M K)
-        (Equiv.sumAssoc _ _ _) (Equiv.sumAssoc _ _ _) (Union.inl (N.union M) K (Union.inr N M q)) =
+    have h₂ (q : M.Port) : F (Union.inl (N.union M) K (Union.inr N M q)) =
         Union.inr N (M.union K) (Union.inl M K q) := by
       cases q <;> rfl
-    have h₃ (q : K.Port) : Port.map (Equiv.sumAssoc _ _ _) (unionAssoc_label_agent N M K)
-        (Equiv.sumAssoc _ _ _) (Equiv.sumAssoc _ _ _) (Union.inr (N.union M) K q) =
+    have h₃ (q : K.Port) : F (Union.inr (N.union M) K q) =
         Union.inr N (M.union K) (Union.inr M K q) := by
       cases q <;> rfl
-    exact union_link_ext (N.union M) K _
+    exact union_link_ext (N.union M) K F
       (union_link_ext N M _ (fun q => by simp only [h₁, Union.link_inl])
         (fun q => by simp only [h₂, Union.link_inl, Union.link_inr]))
       (fun q => by simp only [h₃, Union.link_inr])

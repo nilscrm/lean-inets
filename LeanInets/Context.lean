@@ -45,19 +45,17 @@ abbrev exchange : Net S ((ι ⊕ κ₂) ⊕ κ₁) := D.reindex (sumRightComm ι
 
 /-- Exchanging the holes twice gives back the original context. -/
 theorem exchange_exchange : D.exchange.exchange ≈ D :=
-  ((reindexIso _ D).trans (reindexIso _ _)).symm.equiv fun i => by rcases i with (_ | _) | _ <;> rfl
+  ((reindexIso _ D).trans (reindexIso _ _)).symm.equiv
 
 /-- Plugging into the two holes of a context can be done in either order. -/
 def plugExchange : Iso ((D.plug X).plug Y) ((D.exchange.plug Y).plug X) :=
   (plugUnion D Y X).trans <|
     (Iso.plug ((reindexIso _ D).symm.trans ((reindexIso _ D).trans (reindexIso _ _)))
-      (unionComm Y X) (.refl ι) (by rintro (_ | _ | _) <;> rfl)).trans
+      (unionComm Y X) (.refl ι)).trans
     (plugUnion D.exchange X Y).symm
 
-theorem plugExchange_iface (i : ι) : (plugExchange D X Y).iface i = i := rfl
-
 theorem plug_plug_equiv_exchange : (D.plug X).plug Y ≈ (D.exchange.plug Y).plug X :=
-  (plugExchange D X Y).equiv (plugExchange_iface D X Y)
+  (plugExchange D X Y).equiv
 
 theorem plugExchange_agent (a : ((D.plug X).plug Y).Agent) :
     (plugExchange D X Y).agent a = sumRightComm _ _ _ a := by

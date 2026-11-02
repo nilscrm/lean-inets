@@ -141,11 +141,17 @@ end trace
 section congr
 
 variable {ι κ ι' κ' : Type} {N : Net S ((ι ⊕ κ) ⊕ κ)} {N' : Net S ((ι' ⊕ κ') ⊕ κ')}
-  (e : Iso N N') (σ : ι ≃ ι') (τ : κ ≃ κ')
+
+/-- A renaming of nets, as a renaming of their traces with interface map `σ`. -/
+def Renaming.trace (e : Renaming N N') (σ : ι ≃ ι') : Renaming N.trace N'.trace where
+  agent := e.agent
+  iface := σ
+  label_agent := e.label_agent
+
+variable (e : Iso N N') (σ : ι ≃ ι') (τ : κ ≃ κ')
 
 /-- The map of ports underlying `Iso.trace`. -/
-abbrev Iso.tracePort : N.trace.Port → N'.trace.Port :=
-  Port.map e.agent e.label_agent e.wire σ
+abbrev Iso.tracePort : N.trace.Port → N'.trace.Port := (e.toRenaming.trace σ).port e.wire
 
 variable {σ τ} (h : ∀ x, e.iface x = Equiv.sumCongr (Equiv.sumCongr σ τ) τ x)
 include h
@@ -158,21 +164,19 @@ theorem Iso.tracePort_back (q : N.Port) :
     · exact absurd hq (Port.not_isEntity_free _)
     all_goals rfl
   · intro i
-    simp only [Iso.port_free, h]
+    simp only [Renaming.port_free, h]
     rfl
   · intro k
-    simp only [← e.link_port, Iso.port_free, h]
+    simp only [← e.link_port, Renaming.port_free, h]
     exact Trace.back_free_inl_inr N' (τ k)
   · intro k
-    simp only [← e.link_port, Iso.port_free, h]
+    simp only [← e.link_port, Renaming.port_free, h]
     exact Trace.back_free_inr N' (τ k)
 
 /-- Trace respects isomorphism, if the isomorphism maps the traced ports to traced ports. -/
 def Iso.trace : Iso N.trace N'.trace where
-  agent := e.agent
+  toRenaming := e.toRenaming.trace σ
   wire := e.wire
-  iface := σ
-  label_agent := e.label_agent
   link_map := trace_link_ext N (e.tracePort σ) fun q => by
     rw [tracePort_back e h, tracePort_back e h, trace_link_back, e.link_port]
 

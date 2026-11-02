@@ -58,8 +58,8 @@ theorem Step.plug {κ : Type} {R R' : Net S κ} (h : I.Step R R') (C : Net S (ι
     I.Step (C.plug R) (C.plug R') := by
   obtain ⟨α, β, Q, C', hQ, hR, hR'⟩ := h
   exact ⟨α, β, Q, C.glue C', hQ,
-    Setoid.trans (plug_equiv (Setoid.refl C) hR) ((plugPlug C C' _).equiv (plugPlug_iface C C' _)),
-    Setoid.trans (plug_equiv (Setoid.refl C) hR') ((plugPlug C C' _).equiv (plugPlug_iface C C' _))⟩
+    Setoid.trans (plug_equiv (Setoid.refl C) hR) (plugPlug C C' _).equiv,
+    Setoid.trans (plug_equiv (Setoid.refl C) hR') (plugPlug C C' _).equiv⟩
 
 /-! ### Reduction respects `≈` -/
 
